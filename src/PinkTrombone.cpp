@@ -201,6 +201,11 @@ struct PinkTrombone : Module {
         constrictionX = params[CAVITYXO_PARAM].value + params[CAVITYXA_PARAM].value * inputs[CAVITYX_INPUT].getVoltage();
         constrictionY = params[CAVITYYO_PARAM].value + params[CAVITYYA_PARAM].value * inputs[CAVITYY_INPUT].getVoltage();
         
+        float range = math::rescale(params[PITCHO_PARAM].getValue() + params[PITCHA_PARAM].getValue() * inputs[PITCH_INPUT].getVoltage() * 0.2, 0, 1, 0, 5);
+        float freq = pow(2.0, range) * 65.406391325149612;
+        
+        glottis->setTargetFrequency(freq);
+        
         fricativeIntensity = params[CAVITYYO_PARAM].value + params[CAVITYYO_PARAM].value * inputs[SOFTPALATE_INPUT].getVoltage();
 
         double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
