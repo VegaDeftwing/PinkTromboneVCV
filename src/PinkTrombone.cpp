@@ -62,7 +62,7 @@ struct PinkTrombone : Module {
     float               constrictionY = 0.0;
     float               fricativeIntensity = 0.0;
     // bool             muteAudio = false;
-    bool                constrictionActive = false;
+    bool                constrictionActive = true;
 
     sample_t            sampleRate = 44100;
     sample_t            samplesPerBlock = 1;
@@ -96,7 +96,7 @@ struct PinkTrombone : Module {
 		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "VCA Attenuation");
 		configParam(CAVITYXO_PARAM, 0.f, 1.f, 0.f, "Cavity X Offset");
 		configParam(CAVITYXA_PARAM, 0.f, 1.f, 0.f, "Cavity X Attenuation");
-		configParam(CAVITYYO_PARAM, 0.f, 1.f, 0.f, "Cavity Y Offset");
+		configParam(CAVITYYO_PARAM, 0.575, 0.69125, 0.69125, "Cavity Y Offset");
 		configParam(CAVITYYA_PARAM, 0.f, 1.f, 0.f, "Cavity Y Attenuation");
 		configParam(TONGUEXO_PARAM, 0.f, 1.f, 0.f, "Tongue X Offset");
 		configParam(TOUNGEXA_PARAM, 0.f, 1.f, 0.f, "Tounge X Attenuation");
@@ -169,8 +169,9 @@ struct PinkTrombone : Module {
 		// Until I understand this code better, I'm just overriding the values here.
 		//double lambda1 = (double) j / (double) N;
 		//double lambda2 = ((double) j + 0.5) / (double) N;
-		double lambda1 = 0.5;
-		double lambda2 = 0.5;
+		// As far as I can tell, these have no impact and can **probably** be removed. For now I'm leaving them in.
+		double lambda1 = 0;
+		double lambda2 = 0;
 		
 		double glot = glottis->runStep(lambda1, asp);
 		double vocalOutput = 0.0;
@@ -184,12 +185,12 @@ struct PinkTrombone : Module {
 
         tongueX = params[TONGUEXO_PARAM].getValue() + (params[TOUNGEXA_PARAM].getValue() * inputs[TONGUEX_INPUT].getVoltage());
         tongueY = params[TONGUEYO_PARAM].getValue() + (params[TOUNGEYA_PARAM].getValue() * inputs[TONGUEY_INPUT].getVoltage());
+		//Constriction X has some impact, but not as much as I think it should.
         constrictionX = params[CAVITYXO_PARAM].getValue() + (params[CAVITYXA_PARAM].getValue() * inputs[CAVITYX_INPUT].getVoltage());
-        constrictionY = params[CAVITYYO_PARAM].getValue() + (params[CAVITYYA_PARAM].getValue() * inputs[CAVITYY_INPUT].getVoltage());
+        constrictionY = params[CAVITYYO_PARAM].getValue() + ((params[CAVITYYA_PARAM].getValue() * inputs[CAVITYY_INPUT].getVoltage()) * 0.1);
         
-        fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
-
-		// glottis->setTargetFrequency(params[PITCHO_PARAM].getValue() * 1000.0);
+        //fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
+		fricativeIntensity = 100.f;
 
         double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
 		double innerTongueControlRadius = 2.05;
@@ -210,7 +211,8 @@ struct PinkTrombone : Module {
 
 		tract->setRestDiameter(tongueIndex, tongueDiameter);
 		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
-		glottis->finishBlock();
+		//glottis->finishBlock(params[CAVITYYO_PARAM].getValue()); //temporarily use this knob to set internal vibrato depth
+		glottis->finishBlock(0.f);
 		tract->finishBlock();
 
         
@@ -239,6 +241,9 @@ struct PinkTrombone : Module {
 		pitch = dsp::FREQ_C4 + params[PITCHO_PARAM].getValue() * dsp::FREQ_C4;
 		pitch = pitch * pow(2.0, params[PITCHA_PARAM].getValue() * inputs[PITCH_INPUT].getVoltage());
         glottis->setTargetFrequency(pitch);
+		//misunderstanding here, tenseness is *not* volume. There must be another parameter for volume somewhere...
+		float tenseness = params[VOLO_PARAM].getValue();
+		glottis->setTargetTenseness(tenseness);
 	}
 
 	}

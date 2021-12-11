@@ -16,7 +16,8 @@ public:
 	Glottis(double sampleRate);
     virtual ~Glottis() {};
 	sample_t runStep(sample_t lambda, sample_t noiseSource);
-	void finishBlock();
+	//void finishBlock();
+	void finishBlock(float vibratodepth);
 	sample_t getNoiseModulator();
 	void setTargetFrequency(sample_t frequency); // 140
 	void setTargetTenseness(sample_t tenseness); // 0.6
