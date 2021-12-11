@@ -30,11 +30,12 @@ typedef struct t_tractProps {
 } t_tractProps;
 
 void initializeTractProps(t_tractProps *props, int n);
+void destroyTractProps(t_tractProps *props);
 
 class Tract {
 public:
 	Tract(sample_t sampleRate, sample_t blockSize, t_tractProps *p);
-	~Tract();
+	virtual ~Tract();
 	// void runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t lambda, Glottis *glottis);
 	void runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t lambda, sample_t glottalNoiseModulator);
 	void finishBlock();

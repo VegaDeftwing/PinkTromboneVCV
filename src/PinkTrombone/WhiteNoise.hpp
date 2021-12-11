@@ -14,7 +14,7 @@
 class WhiteNoise {
 public:
 	WhiteNoise(long sampleLength);
-	~WhiteNoise();
+    virtual ~WhiteNoise();
 	sample_t runStep();
 private:
 	long index;

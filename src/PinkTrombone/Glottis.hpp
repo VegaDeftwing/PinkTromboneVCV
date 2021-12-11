@@ -14,7 +14,7 @@
 class Glottis {
 public:
 	Glottis(double sampleRate);
-	~Glottis();
+    virtual ~Glottis() {};
 	sample_t runStep(sample_t lambda, sample_t noiseSource);
 	void finishBlock();
 	sample_t getNoiseModulator();
