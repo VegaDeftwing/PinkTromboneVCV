@@ -39,6 +39,16 @@ void initializeTractProps(t_tractProps *props, int n)
 	props->noseOffset = NOSE_OFFSET;
 }
 
+void destroyTractProps(t_tractProps *props)
+{
+    if(props->tractDiameter)
+        free(props->tractDiameter);
+    
+    if(props->noseDiameter)
+        free(props->noseDiameter);
+    
+}
+
 Tract::Tract(sample_t sampleRate, sample_t blockTime, t_tractProps *props):
 	lipOutput(0),
 	noseOutput(0),
@@ -104,6 +114,69 @@ void Tract::init() {
 	this->noseDiameter[0] = this->velumTarget;
 	memcpy(this->tractProps->tractDiameter, this->diameter, sizeof(sample_t) * this->tractProps->n);
 	memcpy(this->tractProps->noseDiameter, this->noseDiameter, sizeof(sample_t) * this->tractProps->noseLength);
+}
+
+Tract::~Tract()
+{
+    if(this->diameter)
+        free(this->diameter);
+    
+    if(this->restDiameter)
+        free(this->restDiameter);
+    
+    if(this->targetDiameter)
+        free(this->targetDiameter);
+    
+    if(this->newDiameter)
+        free(this->newDiameter);
+    
+    if(this->R)
+        free(this->R);
+    
+    if(this->L)
+        free(this->L);
+    
+    if(this->reflection)
+        free(this->reflection);
+    
+    if(this->newReflection)
+        free(this->newReflection);
+    
+    if(this->junctionOutputR)
+        free(this->junctionOutputR);
+    
+    if(this->junctionOutputL)
+        free(this->junctionOutputL);
+    
+    if(this->A)
+        free(this->A);
+    
+    if(this->maxAmplitude)
+        free(this->maxAmplitude);
+    
+    if(this->noseR)
+        free(this->noseR);
+    
+    if(this->noseL)
+        free(this->noseL);
+    
+    if(this->noseJunctionOutputR)
+        free(this->noseJunctionOutputR);
+    
+    if(this->noseJunctionOutputL)
+        free(this->noseJunctionOutputL);
+    
+    if(this->noseReflection)
+        free(this->noseReflection);
+    
+    if(this->noseDiameter)
+        free(this->noseDiameter);
+    
+    if(this->noseA)
+        free(this->noseA);
+    
+    if(this->noseMaxAmplitude)
+        free(this->noseMaxAmplitude);
 }
 
 long Tract::getTractIndexCount()

@@ -53,6 +53,27 @@ struct PinkTrombone : Module {
 		LIGHTS_LEN
 	};
 
+    float tongueX = 0.0;
+    float tongueY = 0.0;
+    float constrictionX = 0.0;
+    float constrictionY = 0.0;
+    float fricativeIntensity = 0.0;
+    // bool muteAudio = false;
+    bool constrictionActive = false;
+
+    sample_t sampleRate = 44100;
+    sample_t samplesPerBlock = 1;
+    int n = 44; //this is what the VST plugin used. Still no clue what it is.
+    t_tractProps tractProps;
+    // from https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
+    Glottis * glottis = NULL;
+    Tract * tract = NULL;
+    WhiteNoise * whiteNoise = NULL;
+    Biquad * aspirateFilter = NULL;
+    Biquad * fricativeFilter = NULL;
+
+    bool destroying = false;
+    
 	PinkTrombone() {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		configParam(PITCHO_PARAM, 0.f, 1.f, 0.f, "");
@@ -76,30 +97,51 @@ struct PinkTrombone : Module {
 		configInput(TONGUEY_INPUT, "");
 		configInput(SOFTPALATE_INPUT, "");
 		configOutput(OUTPUT_OUTPUT, "");
+        
+        
+
+        sampleRate = APP->engine->getSampleRate();
+        samplesPerBlock = 1;
+        n = 44; //this is what the VST plugin used. Still no clue what it is.
+        
+        initializeTractProps(&tractProps, n);
+
+        glottis = new Glottis(sampleRate);
+        
+        tract = new Tract(sampleRate, samplesPerBlock, &tractProps);
+        
+        whiteNoise = new WhiteNoise(sampleRate * 2.0);
+        
+        aspirateFilter = new Biquad(sampleRate);
+        aspirateFilter->setGain(1.0);
+        aspirateFilter->setQ(0.5);
+        aspirateFilter->setFrequency(500);
+        
+        fricativeFilter = new Biquad(sampleRate);
+        fricativeFilter->setGain(1.0);
+        fricativeFilter->setQ(0.5);
+        fricativeFilter->setFrequency(1000);
+
 	}
 
+    virtual ~PinkTrombone() {
+        destroying = true;
+        
+        delete fricativeFilter;
+        delete aspirateFilter;
+        delete whiteNoise;
+        delete glottis;
+        delete tract;
+        
+        destroyTractProps(&tractProps);
 
-	float tongueX = 0.0;
-	float tongueY = 0.0;
-	float constrictionX = 0.0;
-	float constrictionY = 0.0;
-	float fricativeIntensity = 0.0;
-	// bool muteAudio = false;
-	bool constrictionActive = false;
-
-	sample_t sampleRate = APP->engine->getSampleRate();
-	sample_t samplesPerBlock = 1;
-	int n = 44; //this is what the VST plugin used. Still no clue what it is.
-	t_tractProps tractProps;
-	// from https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
-	Glottis * glottis = new Glottis(sampleRate);
-	Tract * tract = new Tract(sampleRate, samplesPerBlock, &tractProps);
-	WhiteNoise * whiteNoise = new WhiteNoise(sampleRate * 2.0);
-	Biquad * aspirateFilter = new Biquad(sampleRate);
-	Biquad * fricativeFilter = new Biquad(sampleRate);
+    }
 	
 	void process(const ProcessArgs& args) override {
 
+        if(destroying)
+            return;
+        
 		double purenoise = whiteNoise->runStep();
 		double asp = aspirateFilter->runStep(purenoise);
 		double fri = fricativeFilter->runStep(purenoise);
@@ -147,13 +189,6 @@ struct PinkTrombone : Module {
 	}
 
 	void onAdd() override {
-		initializeTractProps(&tractProps, n);
-		aspirateFilter->setGain(1.0);
-		aspirateFilter->setQ(0.5);
-		aspirateFilter->setFrequency(500);
-		fricativeFilter->setGain(1.0);
-		fricativeFilter->setQ(0.5);
-		fricativeFilter->setFrequency(1000);
 	}
 };
 

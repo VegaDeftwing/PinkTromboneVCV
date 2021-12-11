@@ -13,8 +13,8 @@
 
 class Biquad {
 public:
-	Biquad(sample_t sampleRate);
-	~Biquad();
+    Biquad(sample_t sampleRate);
+    virtual ~Biquad() {};
 	void setFrequency(sample_t f);
 	void setQ(sample_t f);
 	void setGain(sample_t g);
