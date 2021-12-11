@@ -53,6 +53,8 @@ struct PinkTrombone : Module {
 		LIGHTS_LEN
 	};
 
+	dsp::ClockDivider processDivider;
+
     float               tongueX = 0.0;
     float               tongueY = 0.0;
     float               constrictionX = 0.0;
@@ -75,41 +77,40 @@ struct PinkTrombone : Module {
 
     bool                destroying = false;
     
-//    uint32_t            m_buffer_size = 128;
-//    uint32_t            m_buffer_phase = 0;
-//    float               m_buffer_A[128] = {};
-//    float               m_buffer_B[128] = {};
-//    float               *m_filling_buffer = NULL;
-//    float               *m_output_buffer = NULL;
+	uint32_t            m_buffer_size = 128;
+	// uint32_t            m_buffer_phase = 0;
+	// float               m_buffer_A[128] = {};
+	// float               m_buffer_B[128] = {};
+	// float               *m_filling_buffer = NULL;
+	// float               *m_output_buffer = NULL;
 
 	PinkTrombone() {
         
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		
-        configParam(PITCHO_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(PITCHA_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(VOLO_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(CAVITYXO_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(CAVITYXA_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(CAVITYYO_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(CAVITYYA_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(TONGUEXO_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(TOUNGEXA_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(TONGUEYO_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(TOUNGEYA_PARAM, 0.f, 1.f, 0.f, "");
-		configParam(SOFTPALATE_PARAM, 0.f, 1.f, 0.f, "");
-		configInput(PITCH_INPUT, "");
-		configInput(VOL_INPUT, "");
-		configInput(CAVITYX_INPUT, "");
-		configInput(CAVITYY_INPUT, "");
-		configInput(TONGUEX_INPUT, "");
-		configInput(TONGUEY_INPUT, "");
-		configInput(SOFTPALATE_INPUT, "");
-		configOutput(OUTPUT_OUTPUT, "");
+        configParam(PITCHO_PARAM, 0.1, 1.f, 0.1, "Pitch Offset");
+		configParam(PITCHA_PARAM, 0.f, 1.f, 0.f, "Pitch Attenuation");
+		configParam(VOLO_PARAM, 0.f, 1.f, 0.f, "VCA Offset");
+		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "VCA Attenuation");
+		configParam(CAVITYXO_PARAM, 0.f, 1.f, 0.f, "Cavity X Offset");
+		configParam(CAVITYXA_PARAM, 0.f, 1.f, 0.f, "Cavity X Attenuation");
+		configParam(CAVITYYO_PARAM, 0.f, 1.f, 0.f, "Cavity Y Offset");
+		configParam(CAVITYYA_PARAM, 0.f, 1.f, 0.f, "Cavity Y Attenuation");
+		configParam(TONGUEXO_PARAM, 0.f, 1.f, 0.f, "Tongue X Offset");
+		configParam(TOUNGEXA_PARAM, 0.f, 1.f, 0.f, "Tounge X Attenuation");
+		configParam(TONGUEYO_PARAM, 0.f, 1.f, 0.f, "Tounge Y Offset");
+		configParam(TOUNGEYA_PARAM, 0.f, 1.f, 0.f, "Tounge Y Attenuation");
+		configParam(SOFTPALATE_PARAM, 0.f, 1.f, 0.f, "Soft Palate Toggle");
+		configInput(PITCH_INPUT, "Pitch V/Oct");
+		configInput(VOL_INPUT, "VCA Control");
+		configInput(CAVITYX_INPUT, "Cavity X");
+		configInput(CAVITYY_INPUT, "Cavity Y");
+		configInput(TONGUEX_INPUT, "Tongue X");
+		configInput(TONGUEY_INPUT, "Tongue Y");
+		configInput(SOFTPALATE_INPUT, "Soft Palate Gate");
+		configOutput(OUTPUT_OUTPUT, "Output");
 
         sampleRate = APP->engine->getSampleRate();
-//        samplesPerBlock = 1;
         samplesPerBlock = m_buffer_size;
         n = 44; //this is what the VST plugin used. Still no clue what it is.
         
@@ -130,10 +131,12 @@ struct PinkTrombone : Module {
         fricativeFilter->setGain(1.0);
         fricativeFilter->setQ(0.5);
         fricativeFilter->setFrequency(1000);
+
+		processDivider.setDivision(64);
         
-        m_filling_buffer = m_buffer_A;
-        m_output_buffer = m_buffer_B;
-        m_buffer_phase = 0;
+        // m_filling_buffer = m_buffer_A;
+        // m_output_buffer = m_buffer_B;
+        // m_buffer_phase = 0;
 	}
 
     virtual ~PinkTrombone() {
@@ -176,32 +179,15 @@ struct PinkTrombone : Module {
 
 		// I think vocal output is the actual audio out, so that should be good to go - however, it's a double, so it will need to be scaled down to a float with the correct voltage range.
 
-//        PITCHO_PARAM,
-//        PITCHA_PARAM,
-//        VOLO_PARAM,
-//        VOLA_PARAM,
-//        ,
-//        SOFTPALATE_PARAM,
-//        PARAMS_LEN
-//
-//
-//        PITCH_INPUT,
-//        VOL_INPUT,
-//        ,
-//        SOFTPALATE_INPUT,
-//        INPUTS_LEN
-//
-//        float               fricativeIntensity = 0.0;
-//        // bool             muteAudio = false;
-//        bool                constrictionActive = false;
 
-
-        tongueX = params[TONGUEXO_PARAM].value + params[TOUNGEXA_PARAM].value * inputs[TONGUEX_INPUT].getVoltage();
-        tongueY = params[TONGUEYO_PARAM].value + params[TOUNGEYA_PARAM].value * inputs[TONGUEY_INPUT].getVoltage();
-        constrictionX = params[CAVITYXO_PARAM].value + params[CAVITYXA_PARAM].value * inputs[CAVITYX_INPUT].getVoltage();
-        constrictionY = params[CAVITYYO_PARAM].value + params[CAVITYYA_PARAM].value * inputs[CAVITYY_INPUT].getVoltage();
+        tongueX = params[TONGUEXO_PARAM].getValue() + (params[TOUNGEXA_PARAM].getValue() * inputs[TONGUEX_INPUT].getVoltage());
+        tongueY = params[TONGUEYO_PARAM].getValue() + (params[TOUNGEYA_PARAM].getValue() * inputs[TONGUEY_INPUT].getVoltage());
+        constrictionX = params[CAVITYXO_PARAM].getValue() + (params[CAVITYXA_PARAM].getValue() * inputs[CAVITYX_INPUT].getVoltage());
+        constrictionY = params[CAVITYYO_PARAM].getValue() + (params[CAVITYYA_PARAM].getValue() * inputs[CAVITYY_INPUT].getVoltage());
         
-        fricativeIntensity = params[CAVITYYO_PARAM].value + params[CAVITYYO_PARAM].value * inputs[SOFTPALATE_INPUT].getVoltage();
+        fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
+
+		// glottis->setTargetFrequency(params[PITCHO_PARAM].getValue() * 1000.0);
 
         double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
 		double innerTongueControlRadius = 2.05;
@@ -210,8 +196,8 @@ struct PinkTrombone : Module {
 		double constrictionMin = -2.0;
 		double constrictionMax = 2.0;
 
-		double constrictionIndex = this->constrictionX * (double) this->tract->getTractIndexCount();
-		double constrictionDiameter = this->constrictionY * (constrictionMax - constrictionMin) + constrictionMin;
+		double constrictionIndex = constrictionX * (double) tract->getTractIndexCount();
+		double constrictionDiameter = constrictionY * (constrictionMax - constrictionMin) + constrictionMin;
 
 		if (constrictionActive == false) {
 			constrictionDiameter = constrictionMax;
@@ -246,6 +232,11 @@ struct PinkTrombone : Module {
 //        float               m_buffer_B[128] = {};
 //        float               *m_filling_buffer = NULL;
 //        float               *m_output_buffer = NULL;
+
+	if (processDivider.process()){
+		float pitch = constrictionY = params[PITCHO_PARAM].getValue() + (params[PITCHA_PARAM].getValue() * inputs[PITCH_INPUT].getVoltage());
+		glottis->setTargetFrequency(pitch * 1000.0);
+	}
 
 	}
 
