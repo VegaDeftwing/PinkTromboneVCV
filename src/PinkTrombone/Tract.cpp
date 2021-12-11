@@ -8,6 +8,8 @@
 #include "Tract.hpp"
 #include <math.h>
 #include "util.h"
+#include <cstring>
+
 
 typedef struct t_transient {
 	int position;

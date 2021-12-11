@@ -1,19 +1,21 @@
 #include "plugin.hpp"
 // Glottis and Tract are where all the magic happens. Neither is crazy complicated, though
 // rewriting them to be per sample instead of working on blocks is going to be a challenge.
-//#include "PinkTrombone/Glottis.hpp"
-//#include "PinkTrombone/Tract.hpp"
+// Glottis doesn't appear to use any buffers, so it may be able to be used outright
+// 
+#include "PinkTrombone/Glottis.hpp"
+#include "PinkTrombone/Tract.hpp"
 // White noise is just filling a buffer with random values with rand(). This can
 // be done per sample instead to bring us back to real time, probably using rack::random
-//#include "PinkTrombone/WhiteNoise.hpp"
+#include "PinkTrombone/WhiteNoise.hpp"
 // Biquad is a normal biquad filter, with frequency, Q, and gain. 
 // dsp::Biquad from the VCV dsp library should be used instead of Pink Trombones
-//#include "PinkTrombone/Biquad.hpp"
+#include "PinkTrombone/Biquad.hpp"
 // see https://vcvrack.com/docs-v2/structrack_1_1dsp_1_1TBiquadFilter
 // dsp::BiquadFilter myFilter
 // myFilter.setParameters(rack::dsp::BiquadFilter::HIGHPASS,normfreq,q,1.0f); // Type, Freq (normalized, must be less than .5), Q, Gain
 // can be LOWPASS_1POLE, HIGHPASS_1POLE, LOWPASS, HIGHPASS, LOWSHELF, HIGHSHELF, BANDPASS, PEAK, or NOTCH 
-//#include "PinkTrombone/util.h"
+#include "PinkTrombone/util.h"
 // util has max, min, clamp, which are all in dsp:: however, "moveTowards" and "Gaussian" will both need adapted to whatever code is written
 
 struct PinkTrombone : Module {
@@ -84,20 +86,74 @@ struct PinkTrombone : Module {
 	float fricativeIntensity = 0.0;
 	// bool muteAudio = false;
 	bool constrictionActive = false;
+
+	sample_t sampleRate = APP->engine->getSampleRate();
+	sample_t samplesPerBlock = 1;
+	int n = 44; //this is what the VST plugin used. Still no clue what it is.
+	t_tractProps tractProps;
+	// from https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
+	Glottis * glottis = new Glottis(sampleRate);
+	Tract * tract = new Tract(sampleRate, samplesPerBlock, &tractProps);
+	WhiteNoise * whiteNoise = new WhiteNoise(sampleRate * 2.0);
+	Biquad * aspirateFilter = new Biquad(sampleRate);
+	Biquad * fricativeFilter = new Biquad(sampleRate);
 	
 	void process(const ProcessArgs& args) override {
-	// 	this->glottis = new Glottis(sampleRate);
-	// 	this->tract = new Tract(sampleRate, samplesPerBlock, &this->tractProps);
-	// 	this->whiteNoise = new WhiteNoise(sampleRate * 2.0);
-	// 	this->aspirateFilter = new Biquad(sampleRate);
-	// 	this->fricativeFilter = new Biquad(sampleRate);
+
+		double purenoise = whiteNoise->runStep();
+		double asp = aspirateFilter->runStep(purenoise);
+		double fri = fricativeFilter->runStep(purenoise);
 		
-	// 	this->aspirateFilter->setGain(1.0);
-	// 	this->aspirateFilter->setQ(0.5);
-	// 	this->aspirateFilter->setFrequency(500);
-	// 	this->fricativeFilter->setGain(1.0);
-	// 	this->fricativeFilter->setQ(0.5);
-	// 	this->fricativeFilter->setFrequency(1000);
+		// Glottis
+		// the original code has a loop from j to n here that I *THINK* is accounting for the buffer, which isn't applicable here.
+		// See line 181 of https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp 
+		// Until I understand this code better, I'm just overriding the values here.
+		//double lambda1 = (double) j / (double) N;
+		//double lambda2 = ((double) j + 0.5) / (double) N;
+		double lambda1 = 0.5;
+		double lambda2 = 0.5;
+		
+		double glot = glottis->runStep(lambda1, asp);
+		double vocalOutput = 0.0;
+		tract->runStep(glot, fri, lambda1, glot);
+		vocalOutput += tract->lipOutput + tract->noseOutput;
+		tract->runStep(glot, fri, lambda2, glot);
+		vocalOutput += tract->lipOutput + tract->noseOutput;
+
+		// I think vocal output is the actual audio out, so that should be good to go - however, it's a double, so it will need to be scaled down to a float with the correct voltage range.
+
+		double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
+		double innerTongueControlRadius = 2.05;
+		double outerTongueControlRadius = 3.5;
+		double tongueDiameter = tongueY * (outerTongueControlRadius - innerTongueControlRadius) + innerTongueControlRadius;
+		double constrictionMin = -2.0;
+		double constrictionMax = 2.0;
+
+		double constrictionIndex = this->constrictionX * (double) this->tract->getTractIndexCount();
+		double constrictionDiameter = this->constrictionY * (constrictionMax - constrictionMin) + constrictionMin;
+
+		if (constrictionActive == false) {
+			constrictionDiameter = constrictionMax;
+		} else {
+			fricativeIntensity += 0.1; // TODO ex recto
+			fricativeIntensity = minf(1.0, this->fricativeIntensity);
+		}
+
+		tract->setRestDiameter(tongueIndex, tongueDiameter);
+		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
+		glottis->finishBlock();
+		tract->finishBlock();
+
+	}
+
+	void onAdd() override {
+		initializeTractProps(&tractProps, n);
+		aspirateFilter->setGain(1.0);
+		aspirateFilter->setQ(0.5);
+		aspirateFilter->setFrequency(500);
+		fricativeFilter->setGain(1.0);
+		fricativeFilter->setQ(0.5);
+		fricativeFilter->setFrequency(1000);
 	}
 };
 
