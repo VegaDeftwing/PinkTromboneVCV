@@ -75,7 +75,7 @@ struct PinkTrombone : Module {
 
     bool                destroying = false;
     
-//    uint32_t            m_buffer_size = 128;
+    uint32_t            m_buffer_size = 128;
 //    uint32_t            m_buffer_phase = 0;
 //    float               m_buffer_A[128] = {};
 //    float               m_buffer_B[128] = {};
@@ -131,9 +131,9 @@ struct PinkTrombone : Module {
         fricativeFilter->setQ(0.5);
         fricativeFilter->setFrequency(1000);
         
-        m_filling_buffer = m_buffer_A;
-        m_output_buffer = m_buffer_B;
-        m_buffer_phase = 0;
+//        m_filling_buffer = m_buffer_A;
+//        m_output_buffer = m_buffer_B;
+//        m_buffer_phase = 0;
 	}
 
     virtual ~PinkTrombone() {
