@@ -9,7 +9,7 @@
 #define Tract_hpp
 
 #include <stdio.h>
-#include "../JuceLibraryCode/JuceHeader.h"
+//#include "../JuceLibraryCode/JuceHeader.h"
 #include "Glottis.hpp"
 #include "config.h"
 

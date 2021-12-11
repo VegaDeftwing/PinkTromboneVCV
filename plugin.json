@@ -12,5 +12,14 @@
   "sourceUrl": "https://github.com/VegaDeftwing/PinkTromboneVCV",
   "donateUrl": "",
   "changelogUrl": "",
-  "modules": []
+  "modules": [
+    {
+      "slug": "PinkTrombone",
+      "name": "PinkTrombone",
+      "description": "Voice Simulation",
+      "tags": [
+        "Physical modeling"
+      ]
+    }
+  ]
 }
