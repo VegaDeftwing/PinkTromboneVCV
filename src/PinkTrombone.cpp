@@ -55,6 +55,7 @@ struct PinkTrombone : Module {
 
 	dsp::ClockDivider processDivider;
 
+	float 				pitch = dsp::FREQ_C4;
     float               tongueX = 0.0;
     float               tongueY = 0.0;
     float               constrictionX = 0.0;
@@ -88,8 +89,9 @@ struct PinkTrombone : Module {
         
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		
-        configParam(PITCHO_PARAM, 0.1, 1.f, 0.1, "Pitch Offset");
-		configParam(PITCHA_PARAM, 0.f, 1.f, 0.f, "Pitch Attenuation");
+        // configParam(PITCHO_PARAM, 0.1, 1.f, 0.1, "Pitch Offset");
+		configParam(PITCHO_PARAM, -4.f, 4.f, 0.f, "Frequency Offset", " Hz", 2, dsp::FREQ_C4);
+		configParam(PITCHA_PARAM, 0.f, 1.f, 1.f, "Pitch Attenuation");
 		configParam(VOLO_PARAM, 0.f, 1.f, 0.f, "VCA Offset");
 		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "VCA Attenuation");
 		configParam(CAVITYXO_PARAM, 0.f, 1.f, 0.f, "Cavity X Offset");
@@ -234,8 +236,9 @@ struct PinkTrombone : Module {
 //        float               *m_output_buffer = NULL;
 
 	if (processDivider.process()){
-		float pitch = constrictionY = params[PITCHO_PARAM].getValue() + (params[PITCHA_PARAM].getValue() * inputs[PITCH_INPUT].getVoltage());
-		glottis->setTargetFrequency(pitch * 1000.0);
+		pitch = dsp::FREQ_C4 + params[PITCHO_PARAM].getValue() * dsp::FREQ_C4;
+		pitch = pitch * pow(2.0, params[PITCHA_PARAM].getValue() * inputs[PITCH_INPUT].getVoltage());
+        glottis->setTargetFrequency(pitch);
 	}
 
 	}

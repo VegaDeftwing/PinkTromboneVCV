@@ -37,8 +37,8 @@ typedef float sample_t;
 #define TRACT_DIAMETER_C		(1.5)
 
 // Glottis properties
-#define VIBRATO_AMOUNT			(0.005)
-//#define VIBRATO_AMOUNT			(0)
+//#define VIBRATO_AMOUNT			(0.005)
+#define VIBRATO_AMOUNT			(0)
 #define VIBRATO_FREQUENCY		(6)
 
 #endif /* config_h */
