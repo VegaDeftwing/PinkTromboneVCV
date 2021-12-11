@@ -10,15 +10,17 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
 
   - [x] Output
 
-  - [x] Tongue X
+  - [x] Tongue X - ahh  -> EEE
 
-  - [x] Tongue Y
+  - [x] Tongue Y - ahh -> ayy
 
-  - [x] Cavity X
+  - [x] Cavity X - .46 to .999
 
-  - [x] Cavity Y
+  - [x] Cavity Y - .575 to .69125
 
-  - [x] Voicebox Pitch (V/Oct)
+  - [x] Voicebox Pitch (V/Oct) - 140Hz to 4186Hz on Tune
+
+    > It is possible to go down a bit lower, but it does sometimes fail. 140 should be safe. It can go lower with the v/oct input without failing for some reason.
 
   - [ ] Voicebox Level (Basically a VCA)
 
@@ -26,9 +28,13 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
 
   - [ ] Pallete Close / Nasal Only (Gate)
 
+- [ ] Limit Pitch range to prevent loss of output - limit seems to be ~ 135hz
+
 - [x] Figure out how to disable internal vibrato
 
-- [ ] Figure out what the lambda values are for
+- [x] Figure out what the lambda values are for
+
+  > They seem to have no effect?
 
 - [ ] Determine if any other parameters should have controls
 
@@ -47,6 +53,8 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
   - [ ] TRACT_DIAMETER_*
 
   - [ ] asp and fri filter cutoffs
+
+- [ ] Limit controls to prevent inf and NaN
 
 - [ ] Redesign Panel
 
