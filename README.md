@@ -6,9 +6,9 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
 
 ## WIP
 
-Panel:
-Tounge X-Y
-Oral Cavity & Throat X-Y
-Voicebox (volume - Y, Pitch - X)
-Soft Pallete close / nasal only (Gate)
----> 7 controls needed.
+Panel has:
+* Tounge X-Y Offset, CV in, and attenuator
+* Oral Cavity & Throat X-Y Offset, CV in, and attenuator
+* Voicebox (volume - Y, Pitch - X) Offset, CV in, and attenuator. Pitch should be V/Oct in final
+* Soft Pallete close / nasal only (Gate) Offset, CV in, and attenuator
+* Audio Ouput
