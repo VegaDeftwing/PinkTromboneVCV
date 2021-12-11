@@ -53,30 +53,40 @@ struct PinkTrombone : Module {
 		LIGHTS_LEN
 	};
 
-    float tongueX = 0.0;
-    float tongueY = 0.0;
-    float constrictionX = 0.0;
-    float constrictionY = 0.0;
-    float fricativeIntensity = 0.0;
-    // bool muteAudio = false;
-    bool constrictionActive = false;
+    float               tongueX = 0.0;
+    float               tongueY = 0.0;
+    float               constrictionX = 0.0;
+    float               constrictionY = 0.0;
+    float               fricativeIntensity = 0.0;
+    // bool             muteAudio = false;
+    bool                constrictionActive = false;
 
-    sample_t sampleRate = 44100;
-    sample_t samplesPerBlock = 1;
-    int n = 44; //this is what the VST plugin used. Still no clue what it is.
-    t_tractProps tractProps;
-    // from https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
-    Glottis * glottis = NULL;
-    Tract * tract = NULL;
-    WhiteNoise * whiteNoise = NULL;
-    Biquad * aspirateFilter = NULL;
-    Biquad * fricativeFilter = NULL;
-
-    bool destroying = false;
+    sample_t            sampleRate = 44100;
+    sample_t            samplesPerBlock = 1;
+    int                  n = 44; //this is what the VST plugin used. Still no clue what it is.
+    t_tractProps        tractProps;
     
+    // from https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
+    Glottis             *glottis = NULL;
+    Tract               *tract = NULL;
+    WhiteNoise          *whiteNoise = NULL;
+    Biquad              *aspirateFilter = NULL;
+    Biquad              *fricativeFilter = NULL;
+
+    bool                destroying = false;
+    
+//    uint32_t            m_buffer_size = 128;
+//    uint32_t            m_buffer_phase = 0;
+//    float               m_buffer_A[128] = {};
+//    float               m_buffer_B[128] = {};
+//    float               *m_filling_buffer = NULL;
+//    float               *m_output_buffer = NULL;
+
 	PinkTrombone() {
+        
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
-		configParam(PITCHO_PARAM, 0.f, 1.f, 0.f, "");
+		
+        configParam(PITCHO_PARAM, 0.f, 1.f, 0.f, "");
 		configParam(PITCHA_PARAM, 0.f, 1.f, 0.f, "");
 		configParam(VOLO_PARAM, 0.f, 1.f, 0.f, "");
 		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "");
@@ -97,11 +107,10 @@ struct PinkTrombone : Module {
 		configInput(TONGUEY_INPUT, "");
 		configInput(SOFTPALATE_INPUT, "");
 		configOutput(OUTPUT_OUTPUT, "");
-        
-        
 
         sampleRate = APP->engine->getSampleRate();
-        samplesPerBlock = 1;
+//        samplesPerBlock = 1;
+        samplesPerBlock = m_buffer_size;
         n = 44; //this is what the VST plugin used. Still no clue what it is.
         
         initializeTractProps(&tractProps, n);
@@ -121,7 +130,10 @@ struct PinkTrombone : Module {
         fricativeFilter->setGain(1.0);
         fricativeFilter->setQ(0.5);
         fricativeFilter->setFrequency(1000);
-
+        
+        m_filling_buffer = m_buffer_A;
+        m_output_buffer = m_buffer_B;
+        m_buffer_phase = 0;
 	}
 
     virtual ~PinkTrombone() {
@@ -164,7 +176,34 @@ struct PinkTrombone : Module {
 
 		// I think vocal output is the actual audio out, so that should be good to go - however, it's a double, so it will need to be scaled down to a float with the correct voltage range.
 
-		double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
+//        PITCHO_PARAM,
+//        PITCHA_PARAM,
+//        VOLO_PARAM,
+//        VOLA_PARAM,
+//        ,
+//        SOFTPALATE_PARAM,
+//        PARAMS_LEN
+//
+//
+//        PITCH_INPUT,
+//        VOL_INPUT,
+//        ,
+//        SOFTPALATE_INPUT,
+//        INPUTS_LEN
+//
+//        float               fricativeIntensity = 0.0;
+//        // bool             muteAudio = false;
+//        bool                constrictionActive = false;
+
+
+        tongueX = params[TONGUEXO_PARAM].value + params[TOUNGEXA_PARAM].value * inputs[TONGUEX_INPUT].getVoltage();
+        tongueY = params[TONGUEYO_PARAM].value + params[TOUNGEYA_PARAM].value * inputs[TONGUEY_INPUT].getVoltage();
+        constrictionX = params[CAVITYXO_PARAM].value + params[CAVITYXA_PARAM].value * inputs[CAVITYX_INPUT].getVoltage();
+        constrictionY = params[CAVITYYO_PARAM].value + params[CAVITYYA_PARAM].value * inputs[CAVITYY_INPUT].getVoltage();
+        
+        fricativeIntensity = params[CAVITYYO_PARAM].value + params[CAVITYYO_PARAM].value * inputs[SOFTPALATE_INPUT].getVoltage();
+
+        double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
 		double innerTongueControlRadius = 2.05;
 		double outerTongueControlRadius = 3.5;
 		double tongueDiameter = tongueY * (outerTongueControlRadius - innerTongueControlRadius) + innerTongueControlRadius;
@@ -185,6 +224,28 @@ struct PinkTrombone : Module {
 		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
 		glottis->finishBlock();
 		tract->finishBlock();
+
+        
+        outputs[OUTPUT_OUTPUT].setVoltage(vocalOutput);
+        // deal with output
+//        m_filling_buffer[m_buffer_phase] = vocalOutput;
+//        outputs[OUTPUT_OUTPUT].setVoltage(m_output_buffer[m_buffer_phase]);
+//        m_buffer_phase++;
+//        if(m_buffer_phase >= m_buffer_size)
+//        {
+//            m_buffer_phase = 0;
+//            float    *tmp = m_filling_buffer;
+//            m_filling_buffer = m_output_buffer;
+//            m_output_buffer = tmp;
+//        }
+        
+        
+//        uint32_t            m_buffer_size = 128;
+//        uint32_t            m_buffer_phase = 0;
+//        float               m_buffer_A[128] = {};
+//        float               m_buffer_B[128] = {};
+//        float               *m_filling_buffer = NULL;
+//        float               *m_output_buffer = NULL;
 
 	}
 
