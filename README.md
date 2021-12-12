@@ -58,12 +58,17 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
 
 - [ ] Redesign Panel
 
-  - [ ] RGB LEDs for indicators
-    - [ ] Tongue: Red: X, Blue: Y
-    - [ ] Cavity: Red: X, Blue: Y
-    - [ ] Voicebox: Red: - pitch, Green: + pitch, Blue, VCA
-    - [ ] Palette close - single, small LED indicator
+  - [ ] Attenu**verters** on everything.
+  - [ ] Don't stack the knobs unless threre's a dramatic size increase
+  - [ ] Make sure fonts are bigger
+  - [ ] NanoVG From Iv for showing state
+  - [ ] ~~RGB LEDs for indicators~~
+    - [ ] ~~Tongue: Red: X, Blue: Y~~
+    - [ ] ~~Cavity: Red: X, Blue: Y~~
+    - [ ] ~~Voicebox: Red: - pitch, Green: + pitch, Blue, VCA~~
+    - [ ] ~~Palette close - single, small LED indicator~~
   - [ ] Tune & Octave knobs
+    - [ ] Slew control on main v/oct input
   - [ ] Master Slew
   - [ ] FM input (turn off internal vibrato)
   - [ ] Include attribution to original on panel

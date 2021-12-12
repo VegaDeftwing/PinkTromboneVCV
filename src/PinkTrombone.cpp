@@ -90,7 +90,7 @@ struct PinkTrombone : Module {
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
 		
         // configParam(PITCHO_PARAM, 0.1, 1.f, 0.1, "Pitch Offset");
-		configParam(PITCHO_PARAM, -4.f, 4.f, 0.f, "Frequency Offset", " Hz", 2, dsp::FREQ_C4);
+		configParam(PITCHO_PARAM, -0.9, 4.f, 0.f, "Frequency Offset", " Hz", 2, dsp::FREQ_C4); // range to prevent lockups
 		configParam(PITCHA_PARAM, 0.f, 1.f, 1.f, "Pitch Attenuation");
 		configParam(VOLO_PARAM, 0.f, 1.f, 0.f, "VCA Offset");
 		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "VCA Attenuation");
@@ -212,7 +212,7 @@ struct PinkTrombone : Module {
 		tract->setRestDiameter(tongueIndex, tongueDiameter);
 		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
 		//glottis->finishBlock(params[CAVITYYO_PARAM].getValue()); //temporarily use this knob to set internal vibrato depth
-		glottis->finishBlock(0.f);
+		glottis->finishBlock(0.4);
 		tract->finishBlock();
 
         
