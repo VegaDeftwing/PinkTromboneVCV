@@ -21,6 +21,7 @@ public:
 	sample_t getNoiseModulator();
 	void setTargetFrequency(sample_t frequency); // 140
 	void setTargetTenseness(sample_t tenseness); // 0.6
+	void setIntensity(sample_t intensity);
 	
 private:
 	void setupWaveform(sample_t lambda);
@@ -40,7 +41,8 @@ private:
 	sample_t Te;
 	sample_t omega;
 	sample_t totalTime;
-	sample_t intensity, loudness;
+	sample_t intensity;
+	sample_t loudness;
 	sample_t vibratoAmount;
 	sample_t vibratoFrequency;
 	bool autoWobble;

@@ -94,7 +94,7 @@ struct PinkTrombone : Module {
 		configParam(PITCHA_PARAM, 0.f, 1.f, 1.f, "Pitch Attenuation");
 		configParam(VOLO_PARAM, 0.f, 1.f, 0.f, "VCA Offset");
 		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "VCA Attenuation");
-		configParam(CAVITYXO_PARAM, 0.f, 1.f, 0.f, "Cavity X Offset");
+		configParam(CAVITYXO_PARAM, 0.06, 0.999, 0.06, "Cavity X Offset"); //determined experimentall, values below .04ish and at 1 cause a jump in output sound
 		configParam(CAVITYXA_PARAM, 0.f, 1.f, 0.f, "Cavity X Attenuation");
 		configParam(CAVITYYO_PARAM, 0.575, 0.69125, 0.69125, "Cavity Y Offset");
 		configParam(CAVITYYA_PARAM, 0.f, 1.f, 0.f, "Cavity Y Attenuation");
@@ -128,6 +128,8 @@ struct PinkTrombone : Module {
         aspirateFilter->setGain(1.0);
         aspirateFilter->setQ(0.5);
         aspirateFilter->setFrequency(500);
+		// aspirateFilter->setQ(0.5);
+        // aspirateFilter->setFrequency(100);
         
         fricativeFilter = new Biquad(sampleRate);
         fricativeFilter->setGain(1.0);
@@ -159,6 +161,8 @@ struct PinkTrombone : Module {
         if(destroying)
             return;
         
+		glottis->setIntensity(inputs[SOFTPALATE_INPUT].getVoltage() / 10.f); // This works, however, intensity needs to be clamped between 0 and 1, otherwise the the tenseness prameter has no effect.
+
 		double purenoise = whiteNoise->runStep();
 		double asp = aspirateFilter->runStep(purenoise);
 		double fri = fricativeFilter->runStep(purenoise);
@@ -190,7 +194,8 @@ struct PinkTrombone : Module {
         constrictionY = params[CAVITYYO_PARAM].getValue() + ((params[CAVITYYA_PARAM].getValue() * inputs[CAVITYY_INPUT].getVoltage()) * 0.1);
         
         //fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
-		fricativeIntensity = 100.f;
+		// This affects the amount of noise being added when the throat is nearly closed (Cavity Y < ~.67). This should be exposed on the panel.
+		fricativeIntensity = 1.f;
 
         double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
 		double innerTongueControlRadius = 2.05;
@@ -212,7 +217,7 @@ struct PinkTrombone : Module {
 		tract->setRestDiameter(tongueIndex, tongueDiameter);
 		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
 		//glottis->finishBlock(params[CAVITYYO_PARAM].getValue()); //temporarily use this knob to set internal vibrato depth
-		glottis->finishBlock(0.4);
+		glottis->finishBlock(1.0);
 		tract->finishBlock();
 
         
