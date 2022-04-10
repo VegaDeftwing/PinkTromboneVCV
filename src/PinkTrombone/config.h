@@ -17,7 +17,6 @@ typedef float sample_t;
 #define NUM_CONSTRICTIONS				(44.0)
 #define BLADE_START				(10)
 #define NOSE_LENGTH				(28)
-//#define NOSE_LENGTH				(14)
 #define TIP_START				(32)
 //#define TIP_START				(12)
 #define	LIP_START				(39)

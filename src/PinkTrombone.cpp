@@ -98,9 +98,9 @@ struct PinkTrombone : Module {
 		configParam(CAVITYXA_PARAM, 0.f, 1.f, 0.f, "Cavity X Attenuation");
 		configParam(CAVITYYO_PARAM, 0.575, 0.69125, 0.69125, "Cavity Y Offset");
 		configParam(CAVITYYA_PARAM, 0.f, 1.f, 0.f, "Cavity Y Attenuation");
-		configParam(TONGUEXO_PARAM, 0.f, 1.f, 0.f, "Tongue X Offset");
+		configParam(TONGUEXO_PARAM, -1.f, 1.f, 0.f, "Tongue X Offset");
 		configParam(TOUNGEXA_PARAM, 0.f, 1.f, 0.f, "Tounge X Attenuation");
-		configParam(TONGUEYO_PARAM, 0.f, 1.f, 0.f, "Tounge Y Offset");
+		configParam(TONGUEYO_PARAM, -1.f, 1.f, 0.f, "Tounge Y Offset");
 		configParam(TOUNGEYA_PARAM, 0.f, 1.f, 0.f, "Tounge Y Attenuation");
 		configParam(SOFTPALATE_PARAM, 0.f, 1.f, 0.f, "Soft Palate Toggle");
 		configInput(PITCH_INPUT, "Pitch V/Oct");
@@ -160,8 +160,11 @@ struct PinkTrombone : Module {
 
         if(destroying)
             return;
-        
-		glottis->setIntensity(inputs[SOFTPALATE_INPUT].getVoltage() / 10.f); // This works, however, intensity needs to be clamped between 0 and 1, otherwise the the tenseness prameter has no effect.
+        if (inputs[SOFTPALATE_INPUT].isConnected()){
+			glottis->setIntensity(inputs[SOFTPALATE_INPUT].getVoltage() / 10.f); // This works, however, intensity needs to be clamped between 0 and 1, otherwise the the tenseness prameter has no effect.
+		} else{
+			glottis->setIntensity(.88);
+		}
 
 		double purenoise = whiteNoise->runStep();
 		double asp = aspirateFilter->runStep(purenoise);

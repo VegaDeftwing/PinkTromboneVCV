@@ -28,7 +28,7 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
 
   - [ ] Pallete Close / Nasal Only (Gate)
 
-    > 
+    > I **think** this is just ToungeY going negative
 
 - [x] Limit Pitch range to prevent loss of output - limit seems to be ~ 135hz
 
@@ -38,7 +38,10 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
 
   > They seem to have no effect?
 
-- [ ] Figure out why pitch wobble occassionaly stops?
+- [x] Figure out why pitch wobble occassionaly stops?
+
+  > ~~This might have to do with `glottis->totalTime` and the size of timeStep, but I'm not sure yet. This really does ruin the vocal effect to not have this, so this NEEDS fixed~~
+  time was limited to 512. The solution is hacky and probably in a bad place, but at least it's fixed.
 
 - [ ] Determine if any other parameters should have controls
 
@@ -59,6 +62,8 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
   - [ ] Nose len
 
     > At least for now this doesn't appear to do anything, but I haven't yet figured out how to colse the pallete / use the nose, so that makes sense.
+    >
+    > ... Okay, obviously it does something. Set the nose length to 44 (the same as `n`, which I still don't know what is) and it seems to be closer to the web version now?
 
   - [ ] Tip & Lip start
 
