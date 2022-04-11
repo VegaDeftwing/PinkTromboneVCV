@@ -59,6 +59,8 @@ available at https://github.com/cutelabnyc/pink-trombone-cpp
 
     This determines how much noise is added when the threat is nearly closed. It would definitely be nice to be able to adjust this on the panel. Valid values range between 0 and 1
 
+  > Putting two of these in the Right Click menu, because I don't think they should be modulated that much anyway.
+
   - [ ] Nose len
 
     > At least for now this doesn't appear to do anything, but I haven't yet figured out how to colse the pallete / use the nose, so that makes sense.

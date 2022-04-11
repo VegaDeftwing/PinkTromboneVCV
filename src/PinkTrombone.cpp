@@ -1,48 +1,67 @@
 #include "plugin.hpp"
+
+#include "plugin.hpp"
 // Glottis and Tract are where all the magic happens. Neither is crazy complicated, though
 // rewriting them to be per sample instead of working on blocks is going to be a challenge.
 // Glottis doesn't appear to use any buffers, so it may be able to be used outright
-// 
+//
 #include "PinkTrombone/Glottis.hpp"
 #include "PinkTrombone/Tract.hpp"
 // White noise is just filling a buffer with random values with rand(). This can
 // be done per sample instead to bring us back to real time, probably using rack::random
 #include "PinkTrombone/WhiteNoise.hpp"
-// Biquad is a normal biquad filter, with frequency, Q, and gain. 
+// Biquad is a normal biquad filter, with frequency, Q, and gain.
 // dsp::Biquad from the VCV dsp library should be used instead of Pink Trombones
 #include "PinkTrombone/Biquad.hpp"
 // see https://vcvrack.com/docs-v2/structrack_1_1dsp_1_1TBiquadFilter
 // dsp::BiquadFilter myFilter
 // myFilter.setParameters(rack::dsp::BiquadFilter::HIGHPASS,normfreq,q,1.0f); // Type, Freq (normalized, must be less than .5), Q, Gain
-// can be LOWPASS_1POLE, HIGHPASS_1POLE, LOWPASS, HIGHPASS, LOWSHELF, HIGHSHELF, BANDPASS, PEAK, or NOTCH 
+// can be LOWPASS_1POLE, HIGHPASS_1POLE, LOWPASS, HIGHPASS, LOWSHELF, HIGHSHELF, BANDPASS, PEAK, or NOTCH
 #include "PinkTrombone/util.h"
 // util has max, min, clamp, which are all in dsp:: however, "moveTowards" and "Gaussian" will both need adapted to whatever code is written
 
 struct PinkTrombone : Module {
 	enum ParamId {
-		PITCHO_PARAM,
-		PITCHA_PARAM,
-		VOLO_PARAM,
-		VOLA_PARAM,
-		CAVITYXO_PARAM,
-		CAVITYXA_PARAM,
-		CAVITYYO_PARAM,
-		CAVITYYA_PARAM,
-		TONGUEXO_PARAM,
-		TOUNGEXA_PARAM,
-		TONGUEYO_PARAM,
-		TOUNGEYA_PARAM,
-		SOFTPALATE_PARAM,
+		TONGUEX_PARAM,
+		TONGUEY_PARAM,
+		NOSE_PARAM,
+		LIP_PARAM,
+		THROATX_PARAM,
+		THROATY_PARAM,
+		TONGUEXA_PARAM,
+		TONGUEYA_PARAM,
+		THROATXA_PARAM,
+		THROATYA_PARAM,
+		TIP_PARAM,
+		DIAM_PARAM,
+		FRICFC_PARAM,
+		FRICFCA_PARAM,
+		FRICQ_PARAM,
+		FRICQA_PARAM,
+		FRICL_PARAM,
+		FRICLA_PARAM,
+		FCFOLLOW_PARAM,
+		TENSEA_PARAM,
+		TENSE_PARAM,
+		VOCTA_PARAM,
+		MASTERPITCH_PARAM,
+		FMA_PARAM,
+		VIBA_PARAM,
+		VIB_PARAM,
 		PARAMS_LEN
 	};
 	enum InputId {
-		PITCH_INPUT,
-		VOL_INPUT,
-		CAVITYX_INPUT,
-		CAVITYY_INPUT,
-		TONGUEX_INPUT,
-		TONGUEY_INPUT,
-		SOFTPALATE_INPUT,
+		TONGUEXI_INPUT,
+		TONGUEYI_INPUT,
+		THROATXI_INPUT,
+		THROATYI_INPUT,
+		FRICFCI_INPUT,
+		FRICQI_INPUT,
+		FRICL_INPUT,
+		TENSEI_INPUT,
+		VOCT_INPUT,
+		FMI_INPUT,
+		VIBI_INPUT,
 		INPUTS_LEN
 	};
 	enum OutputId {
@@ -55,131 +74,178 @@ struct PinkTrombone : Module {
 
 	dsp::ClockDivider processDivider;
 
-	float 				pitch = dsp::FREQ_C4;
-    float               tongueX = 0.0;
-    float               tongueY = 0.0;
-    float               constrictionX = 0.0;
-    float               constrictionY = 0.0;
-    float               fricativeIntensity = 0.0;
-    // bool             muteAudio = false;
-    bool                constrictionActive = true;
+	float pitch = dsp::FREQ_C4;
+	float tongueX = 0.0;
+	float tongueY = 0.0;
+	float constrictionX = 0.0;
+	float constrictionY = 0.0;
+	float fricativeIntensity = 0.0;
+	// bool             muteAudio = false;
+	bool constrictionActive = true;
 
-    sample_t            sampleRate = 44100;
-    sample_t            samplesPerBlock = 1;
-    int                  n = 44; //this is what the VST plugin used. Still no clue what it is.
-    t_tractProps        tractProps;
-    
-    // from https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
-    Glottis             *glottis = NULL;
-    Tract               *tract = NULL;
-    WhiteNoise          *whiteNoise = NULL;
-    Biquad              *aspirateFilter = NULL;
-    Biquad              *fricativeFilter = NULL;
+	sample_t sampleRate = 44100;
+	sample_t samplesPerBlock = 1;
+	int n = 44; // this is what the VST plugin used. Still no clue what it is.
+	t_tractProps tractProps;
 
-    bool                destroying = false;
-    
-	uint32_t            m_buffer_size = 128;
+	// from https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
+	Glottis *glottis = NULL;
+	Tract *tract = NULL;
+	WhiteNoise *whiteNoise = NULL;
+	Biquad *aspirateFilter = NULL;
+	Biquad *fricativeFilter = NULL;
+
+	bool destroying = false;
+
+	uint32_t m_buffer_size = 128;
 	// uint32_t            m_buffer_phase = 0;
 	// float               m_buffer_A[128] = {};
 	// float               m_buffer_B[128] = {};
 	// float               *m_filling_buffer = NULL;
-	// float               *m_output_buffer = NULL;
 
-	PinkTrombone() {
-        
+	PinkTrombone()
+	{
 		config(PARAMS_LEN, INPUTS_LEN, OUTPUTS_LEN, LIGHTS_LEN);
-		
-        // configParam(PITCHO_PARAM, 0.1, 1.f, 0.1, "Pitch Offset");
-		configParam(PITCHO_PARAM, -0.9, 4.f, 0.f, "Frequency Offset", " Hz", 2, dsp::FREQ_C4); // range to prevent lockups
-		configParam(PITCHA_PARAM, 0.f, 1.f, 1.f, "Pitch Attenuation");
-		configParam(VOLO_PARAM, 0.f, 1.f, 0.f, "VCA Offset");
-		configParam(VOLA_PARAM, 0.f, 1.f, 0.f, "VCA Attenuation");
-		configParam(CAVITYXO_PARAM, 0.06, 0.999, 0.06, "Cavity X Offset"); //determined experimentall, values below .04ish and at 1 cause a jump in output sound
-		configParam(CAVITYXA_PARAM, 0.f, 1.f, 0.f, "Cavity X Attenuation");
-		configParam(CAVITYYO_PARAM, 0.575, 0.69125, 0.69125, "Cavity Y Offset");
-		configParam(CAVITYYA_PARAM, 0.f, 1.f, 0.f, "Cavity Y Attenuation");
-		configParam(TONGUEXO_PARAM, -1.f, 1.f, 0.f, "Tongue X Offset");
-		configParam(TOUNGEXA_PARAM, 0.f, 1.f, 0.f, "Tounge X Attenuation");
-		configParam(TONGUEYO_PARAM, -1.f, 1.f, 0.f, "Tounge Y Offset");
-		configParam(TOUNGEYA_PARAM, 0.f, 1.f, 0.f, "Tounge Y Attenuation");
-		configParam(SOFTPALATE_PARAM, 0.f, 1.f, 0.f, "Soft Palate Toggle");
-		configInput(PITCH_INPUT, "Pitch V/Oct");
-		configInput(VOL_INPUT, "VCA Control");
-		configInput(CAVITYX_INPUT, "Cavity X");
-		configInput(CAVITYY_INPUT, "Cavity Y");
-		configInput(TONGUEX_INPUT, "Tongue X");
-		configInput(TONGUEY_INPUT, "Tongue Y");
-		configInput(SOFTPALATE_INPUT, "Soft Palate Gate");
+		configParam(TONGUEX_PARAM, 0.f, 1.f, 0.f, "Tongue X");
+		configParam(TONGUEY_PARAM, 0.f, 1.f, 0.f, "Tongue Y");
+		configParam(NOSE_PARAM, 1.f, 10.f, 4.1, "Nose");
+		configParam(TENSE_PARAM, 0.f, 1.f, 0.f, "Tense");
+		configParam(THROATX_PARAM, 0.06, 0.999, 0.06, "Throat X");
+		configParam(THROATY_PARAM,  0.575, 0.69125, 0.69125, "Throat Y");
+		configParam(TONGUEXA_PARAM, 0.f, 1.f, 0.f, "Tongue X Attenuversion");
+		configParam(TONGUEYA_PARAM, 0.f, 1.f, 0.f, "Tongue Y Attenuversion");
+		configParam(THROATXA_PARAM, 0.f, 1.f, 0.f, "Throat X Attenuversion");
+		configParam(THROATYA_PARAM, 0.f, 1.f, 0.f, "Threat Y Attenuversion");
+		configParam(TIP_PARAM, 0.f, 9.f, 2.2, "Tip");
+		configParam(LIP_PARAM, 0.f, 9.f, 0.f, "Lip");
+		configParam(DIAM_PARAM, 0.f, 1.f, 0.87, "Diameter");
+		configParam(FRICFC_PARAM, 0.f, 1.f, 0.5, "Fricative Fc");
+		configParam(FRICFCA_PARAM, 0.f, 1.f, 0.f, "Fricative Fc Attenuversion");
+		configParam(FRICQ_PARAM, 0.f, 1.f, 0.5, "Frciative Q");
+		configParam(FRICQA_PARAM, 0.f, 1.f, 0.f, "Fricative Q Attenuversion");
+		configParam(FRICL_PARAM, 0.f, 1.f, 0.7325, "Fricative Level");
+		configParam(FRICLA_PARAM, 0.f, 1.f, 0.f, "Fricative Level Attenuversion");
+		configParam(FCFOLLOW_PARAM, 0.f, 1.f, 0.f, "Both Fricative and Aspirate Fc Follow Master Pitch");
+		configParam(TENSEA_PARAM, 0.f, 1.f, 0.f, "Tense Attenuversion");
+		configParam(TENSE_PARAM, 0.f, 1.f, 0.44, "Tenseness");
+		configParam(VOCTA_PARAM, 0.f, 1.f, 1.f, "V/Oct Attenuversion");
+		configParam(MASTERPITCH_PARAM, -0.9, 4.f, 0.f, "Master Pitch", " Hz", 2, dsp::FREQ_C4); // range to prevent lockups
+		configParam(FMA_PARAM, 0.f, 1.f, 0.f, "FM Attenuversion");
+		configParam(VIBA_PARAM, 0.f, 1.f, 0.f, "Vibrato Attenuversion");
+		configParam(VIB_PARAM, 0.f, 1.f, 0.35, "Vibrato");
+		configInput(TONGUEXI_INPUT, "Tounge X Input");
+		configInput(TONGUEYI_INPUT, "Tounge Y Input");
+		configInput(THROATXI_INPUT, "Throat X Input");
+		configInput(THROATYI_INPUT, "Throat Y Input");
+		configInput(FRICFCI_INPUT, "Fricative Fc Input");
+		configInput(FRICQI_INPUT, "Frciative Q Input");
+		configInput(FRICL_INPUT, "Frciative Level Input");
+		configInput(TENSEI_INPUT, "Tenseness Input");
+		configInput(VOCT_INPUT, "VOct Input");
+		configInput(FMI_INPUT, "FM Input");
+		configInput(VIBI_INPUT, "Vibrato Input");
 		configOutput(OUTPUT_OUTPUT, "Output");
 
-        sampleRate = APP->engine->getSampleRate();
-        samplesPerBlock = m_buffer_size;
-        n = 44; //this is what the VST plugin used. Still no clue what it is.
-        
-        initializeTractProps(&tractProps, n);
+		sampleRate = APP->engine->getSampleRate();
+		samplesPerBlock = m_buffer_size;
+		n = 44; // this is what the VST plugin used. Still no clue what it is.
 
-        glottis = new Glottis(sampleRate);
-        
-        tract = new Tract(sampleRate, samplesPerBlock, &tractProps);
-        
-        whiteNoise = new WhiteNoise(sampleRate * 2.0);
-        
-        aspirateFilter = new Biquad(sampleRate);
-        aspirateFilter->setGain(1.0);
-        aspirateFilter->setQ(0.5);
-        aspirateFilter->setFrequency(500);
+		initializeTractProps(&tractProps, n);
+
+		glottis = new Glottis(sampleRate);
+
+		tract = new Tract(sampleRate, samplesPerBlock, &tractProps);
+
+		whiteNoise = new WhiteNoise(sampleRate * 2.0);
+
+		aspirateFilter = new Biquad(sampleRate);
+		aspirateFilter->setGain(1.0);
+		aspirateFilter->setQ(0.5);
+		aspirateFilter->setFrequency(500);
 		// aspirateFilter->setQ(0.5);
-        // aspirateFilter->setFrequency(100);
-        
-        fricativeFilter = new Biquad(sampleRate);
-        fricativeFilter->setGain(1.0);
-        fricativeFilter->setQ(0.5);
-        fricativeFilter->setFrequency(1000);
+		// aspirateFilter->setFrequency(100);
+
+		fricativeFilter = new Biquad(sampleRate);
+		fricativeFilter->setGain(1.0);
+		fricativeFilter->setQ(0.5);
+		fricativeFilter->setFrequency(1000);
 
 		processDivider.setDivision(64);
-        
-        // m_filling_buffer = m_buffer_A;
-        // m_output_buffer = m_buffer_B;
-        // m_buffer_phase = 0;
+
+		// m_filling_buffer = m_buffer_A;
+		// m_output_buffer = m_buffer_B;
+		// m_buffer_phase = 0;
 	}
 
-    virtual ~PinkTrombone() {
-        destroying = true;
-        
-        delete fricativeFilter;
-        delete aspirateFilter;
-        delete whiteNoise;
-        delete glottis;
-        delete tract;
-        
-        destroyTractProps(&tractProps);
+	virtual ~PinkTrombone()
+	{
+		destroying = true;
 
-    }
-	
-	void process(const ProcessArgs& args) override {
+		delete fricativeFilter;
+		delete aspirateFilter;
+		delete whiteNoise;
+		delete glottis;
+		delete tract;
 
-        if(destroying)
-            return;
-        if (inputs[SOFTPALATE_INPUT].isConnected()){
-			glottis->setIntensity(inputs[SOFTPALATE_INPUT].getVoltage() / 10.f); // This works, however, intensity needs to be clamped between 0 and 1, otherwise the the tenseness prameter has no effect.
-		} else{
-			glottis->setIntensity(.88);
-		}
+		destroyTractProps(&tractProps);
+	}
+
+	void process(const ProcessArgs &args) override
+	{
+
+		if (destroying)
+			return;
+		// if (inputs[SOFTPALATE_INPUT].isConnected())
+		// {
+		// 	glottis->setIntensity(inputs[SOFTPALATE_INPUT].getVoltage() / 10.f); // This works, however, intensity needs to be clamped between 0 and 1, otherwise the the tenseness prameter has no effect.
+		// }
+		// else
+		// {
+		glottis->setIntensity(params[FRICL_PARAM].getValue());
+		// }
 
 		double purenoise = whiteNoise->runStep();
 		double asp = aspirateFilter->runStep(purenoise);
 		double fri = fricativeFilter->runStep(purenoise);
-		
+		fricativeFilter->setFrequency(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)));
+		fricativeFilter->setQ(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())));
+
+		tractProps.bladeStart = (int)(1.f + params[DIAM_PARAM].getValue() * 10.f);
+	// 		int lipStart;
+	// int bladeStart;
+	// int tipStart;
+	// int noseStart;
+	// int noseLength;
+	// sample_t noseOffset;
+	// sample_t tongueIndex;
+	// sample_t tongueDiameter;
+	// sample_t *noseDiameter;
+	// sample_t *tractDiameter;
+		// tractProps.lipStart = (int)(params[LIP_PARAM].getValue());
+		// float noiseDia = params[NOSE_PARAM].getValue() * 100.f;
+		// *tractProps.noseDiameter = noiseDia;
+		tractProps.noseStart = (int)(params[NOSE_PARAM].getValue());
+		tractProps.tipStart = (int)(params[TIP_PARAM].getValue()*params[DIAM_PARAM].getValue());
+
+
+		//aspirateFilter->setFrequency(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)));
+		//aspirateFilter->setQ(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())));
+
+		// fricativeFilter->setFrequency(inputs[FRICFCI_INPUT].getVoltage() * 2000.f);
+		// fricativeFilter->setQ(inputs[FRICQI_INPUT].getVoltage() * 1.f);
+		// aspirateFilter->setFrequency(inputs[ASPFCI_INPUT].getVoltage() * 1000.f);
+		// aspirateFilter->setQ(inputs[ASPQI_INPUT].getVoltage() * 1.f);
+
 		// Glottis
 		// the original code has a loop from j to n here that I *THINK* is accounting for the buffer, which isn't applicable here.
-		// See line 181 of https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp 
+		// See line 181 of https://github.com/cutelabnyc/pink-trombone-plugin/blob/master/Source/PluginProcessor.cpp
 		// Until I understand this code better, I'm just overriding the values here.
-		//double lambda1 = (double) j / (double) N;
-		//double lambda2 = ((double) j + 0.5) / (double) N;
+		// double lambda1 = (double) j / (double) N;
+		// double lambda2 = ((double) j + 0.5) / (double) N;
 		// As far as I can tell, these have no impact and can **probably** be removed. For now I'm leaving them in.
 		double lambda1 = 0;
 		double lambda2 = 0;
-		
+
 		double glot = glottis->runStep(lambda1, asp);
 		double vocalOutput = 0.0;
 		tract->runStep(glot, fri, lambda1, glot);
@@ -189,113 +255,129 @@ struct PinkTrombone : Module {
 
 		// I think vocal output is the actual audio out, so that should be good to go - however, it's a double, so it will need to be scaled down to a float with the correct voltage range.
 
+		tongueX = params[TONGUEX_PARAM].getValue() + (params[TONGUEXA_PARAM].getValue() * inputs[TONGUEXI_INPUT].getVoltage());
+		tongueY = params[TONGUEY_PARAM].getValue() + (params[TONGUEYA_PARAM].getValue() * inputs[TONGUEYI_INPUT].getVoltage());
+		// Constriction X has some impact, but not as much as I think it should.
+		constrictionX = params[THROATX_PARAM].getValue() + (params[THROATXA_PARAM].getValue() * inputs[THROATXI_INPUT].getVoltage());
+		constrictionY = params[THROATY_PARAM].getValue() + ((params[THROATYA_PARAM].getValue() * inputs[THROATYI_INPUT].getVoltage()) * 0.1);
 
-        tongueX = params[TONGUEXO_PARAM].getValue() + (params[TOUNGEXA_PARAM].getValue() * inputs[TONGUEX_INPUT].getVoltage());
-        tongueY = params[TONGUEYO_PARAM].getValue() + (params[TOUNGEYA_PARAM].getValue() * inputs[TONGUEY_INPUT].getVoltage());
-		//Constriction X has some impact, but not as much as I think it should.
-        constrictionX = params[CAVITYXO_PARAM].getValue() + (params[CAVITYXA_PARAM].getValue() * inputs[CAVITYX_INPUT].getVoltage());
-        constrictionY = params[CAVITYYO_PARAM].getValue() + ((params[CAVITYYA_PARAM].getValue() * inputs[CAVITYY_INPUT].getVoltage()) * 0.1);
-        
-        //fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
-		// This affects the amount of noise being added when the throat is nearly closed (Cavity Y < ~.67). This should be exposed on the panel.
+		// fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
+		//  This affects the amount of noise being added when the throat is nearly closed (Cavity Y < ~.67). This should be exposed on the panel.
 		fricativeIntensity = 1.f;
 
-        double tongueIndex = tongueX * ((double) (tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
+		double tongueIndex = tongueX * ((double)(tract->tongueIndexUpperBound() - tract->tongueIndexLowerBound())) + tract->tongueIndexLowerBound();
 		double innerTongueControlRadius = 2.05;
 		double outerTongueControlRadius = 3.5;
 		double tongueDiameter = tongueY * (outerTongueControlRadius - innerTongueControlRadius) + innerTongueControlRadius;
 		double constrictionMin = -2.0;
 		double constrictionMax = 2.0;
 
-		double constrictionIndex = constrictionX * (double) tract->getTractIndexCount();
+		double constrictionIndex = constrictionX * (double)tract->getTractIndexCount();
 		double constrictionDiameter = constrictionY * (constrictionMax - constrictionMin) + constrictionMin;
 
-		if (constrictionActive == false) {
+		if (constrictionActive == false)
+		{
 			constrictionDiameter = constrictionMax;
-		} else {
+		}
+		else
+		{
 			fricativeIntensity += 0.1; // TODO ex recto
 			fricativeIntensity = minf(1.0, this->fricativeIntensity);
 		}
 
 		tract->setRestDiameter(tongueIndex, tongueDiameter);
 		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
-		//glottis->finishBlock(params[CAVITYYO_PARAM].getValue()); //temporarily use this knob to set internal vibrato depth
-		glottis->finishBlock(1.0);
+		glottis->finishBlock(params[VIB_PARAM].getValue()+(params[VIBA_PARAM].getValue() * inputs[VIBI_INPUT].getVoltage())); //This argument is the amount of vibrato
 		tract->finishBlock();
 
-        
-        outputs[OUTPUT_OUTPUT].setVoltage(vocalOutput);
-        // deal with output
-//        m_filling_buffer[m_buffer_phase] = vocalOutput;
-//        outputs[OUTPUT_OUTPUT].setVoltage(m_output_buffer[m_buffer_phase]);
-//        m_buffer_phase++;
-//        if(m_buffer_phase >= m_buffer_size)
-//        {
-//            m_buffer_phase = 0;
-//            float    *tmp = m_filling_buffer;
-//            m_filling_buffer = m_output_buffer;
-//            m_output_buffer = tmp;
-//        }
-        
-        
-//        uint32_t            m_buffer_size = 128;
-//        uint32_t            m_buffer_phase = 0;
-//        float               m_buffer_A[128] = {};
-//        float               m_buffer_B[128] = {};
-//        float               *m_filling_buffer = NULL;
-//        float               *m_output_buffer = NULL;
+		outputs[OUTPUT_OUTPUT].setVoltage(vocalOutput);
+		// deal with output
+		//        m_filling_buffer[m_buffer_phase] = vocalOutput;
+		//        outputs[OUTPUT_OUTPUT].setVoltage(m_output_buffer[m_buffer_phase]);
+		//        m_buffer_phase++;
+		//        if(m_buffer_phase >= m_buffer_size)
+		//        {
+		//            m_buffer_phase = 0;
+		//            float    *tmp = m_filling_buffer;
+		//            m_filling_buffer = m_output_buffer;
+		//            m_output_buffer = tmp;
+		//        }
 
-	if (processDivider.process()){
-		pitch = dsp::FREQ_C4 + params[PITCHO_PARAM].getValue() * dsp::FREQ_C4;
-		pitch = pitch * pow(2.0, params[PITCHA_PARAM].getValue() * inputs[PITCH_INPUT].getVoltage());
-        glottis->setTargetFrequency(pitch);
-		//misunderstanding here, tenseness is *not* volume. There must be another parameter for volume somewhere...
-		float tenseness = params[VOLO_PARAM].getValue();
-		glottis->setTargetTenseness(tenseness);
+		//        uint32_t            m_buffer_size = 128;
+		//        uint32_t            m_buffer_phase = 0;
+		//        float               m_buffer_A[128] = {};
+		//        float               m_buffer_B[128] = {};
+		//        float               *m_filling_buffer = NULL;
+		//        float               *m_output_buffer = NULL;
+
+		if (processDivider.process())
+		{
+			pitch = dsp::FREQ_C4 + params[MASTERPITCH_PARAM].getValue() * dsp::FREQ_C4;
+			pitch = pitch * pow(2.0, params[VOCTA_PARAM].getValue() * inputs[VOCT_INPUT].getVoltage());
+			glottis->setTargetFrequency(pitch);
+			// misunderstanding here, tenseness is *not* volume. There must be another parameter for volume somewhere...
+			float tenseness = params[TENSE_PARAM].getValue();
+			glottis->setTargetTenseness(tenseness);
+		}
 	}
 
-	}
-
-	void onAdd() override {
+	void onAdd() override
+	{
 	}
 };
 
-
-struct PinkTromboneWidget : ModuleWidget {
+struct PinkTromboneWidget : ModuleWidget
+{
 	PinkTromboneWidget(PinkTrombone* module) {
 		setModule(module);
-		setPanel(createPanel(asset::plugin(pluginInstance, "res/pinktrombone.svg")));
+		setPanel(createPanel(asset::plugin(pluginInstance, "res/PinkTrombone.svg")));
 
-		addChild(createWidget<Bolt>(Vec(RACK_GRID_WIDTH, 0)));
-		addChild(createWidget<Bolt>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
-		addChild(createWidget<Bolt>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
-		addChild(createWidget<Bolt>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+		// addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, 0)));
+		// addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, 0)));
+		// addChild(createWidget<ScrewSilver>(Vec(RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
+		// addChild(createWidget<ScrewSilver>(Vec(box.size.x - 2 * RACK_GRID_WIDTH, RACK_GRID_HEIGHT - RACK_GRID_WIDTH)));
 
-		addParam(createParamCentered<HexKnob>(mm2px(Vec(17.0, 46.0)), module, PinkTrombone::PITCHO_PARAM));
-		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(17.0, 46.0)), module, PinkTrombone::PITCHA_PARAM));
-		addParam(createParamCentered<HexKnob>(mm2px(Vec(8.0, 49.941)), module, PinkTrombone::VOLO_PARAM));
-		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(8.0, 49.941)), module, PinkTrombone::VOLA_PARAM));
-		addParam(createParamCentered<HexKnob>(mm2px(Vec(17.0, 64.0)), module, PinkTrombone::CAVITYXO_PARAM));
-		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(17.0, 64.0)), module, PinkTrombone::CAVITYXA_PARAM));
-		addParam(createParamCentered<HexKnob>(mm2px(Vec(8.0, 67.941)), module, PinkTrombone::CAVITYYO_PARAM));
-		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(8.0, 67.941)), module, PinkTrombone::CAVITYYA_PARAM));
-		addParam(createParamCentered<HexKnob>(mm2px(Vec(17.0, 82.0)), module, PinkTrombone::TONGUEXO_PARAM));
-		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(17.0, 82.0)), module, PinkTrombone::TOUNGEXA_PARAM));
-		addParam(createParamCentered<HexKnob>(mm2px(Vec(8.0, 85.941)), module, PinkTrombone::TONGUEYO_PARAM));
-		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(8.0, 85.941)), module, PinkTrombone::TOUNGEYA_PARAM));
-		addParam(createParamCentered<CKD6>(mm2px(Vec(8.0, 104.0)), module, PinkTrombone::SOFTPALATE_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(9.982, 11.816)), module, PinkTrombone::TONGUEX_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25.482, 11.816)), module, PinkTrombone::TONGUEY_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(75.581, 18.708)), module, PinkTrombone::NOSE_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(90.581, 18.708)), module, PinkTrombone::LIP_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(40.982, 19.816)), module, PinkTrombone::THROATX_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(56.482, 19.816)), module, PinkTrombone::THROATY_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(9.982, 26.816)), module, PinkTrombone::TONGUEXA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25.482, 26.816)), module, PinkTrombone::TONGUEYA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(40.982, 34.816)), module, PinkTrombone::THROATXA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(56.482, 34.816)), module, PinkTrombone::THROATYA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(76.03, 40.315)), module, PinkTrombone::TIP_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(91.03, 40.315)), module, PinkTrombone::DIAM_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(21.595, 59.982)), module, PinkTrombone::FRICFC_PARAM));
+		//addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(21.595, 59.982)), module, PinkTrombone::FRICFCA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.595, 59.982)), module, PinkTrombone::FRICQ_PARAM));
+		//addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(45.595, 59.982)), module, PinkTrombone::FRICQA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(69.595, 59.982)), module, PinkTrombone::FRICL_PARAM));
+		//addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(69.595, 59.982)), module, PinkTrombone::FRICLA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(10.696, 77.263)), module, PinkTrombone::FCFOLLOW_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(40.822, 76.971)), module, PinkTrombone::TENSEA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(53.822, 76.971)), module, PinkTrombone::TENSE_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(19.457, 102.549)), module, PinkTrombone::VOCTA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(19.957, 118.436)), module, PinkTrombone::MASTERPITCH_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(31.319, 118.936)), module, PinkTrombone::FMA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(72.872, 118.936)), module, PinkTrombone::VIBA_PARAM));
+		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(85.872, 118.936)), module, PinkTrombone::VIB_PARAM));
 
-		addInput(createInputCentered<InJack>(mm2px(Vec(33.0, 46.0)), module, PinkTrombone::PITCH_INPUT));
-		addInput(createInputCentered<InJack>(mm2px(Vec(42.0, 50.0)), module, PinkTrombone::VOL_INPUT));
-		addInput(createInputCentered<InJack>(mm2px(Vec(33.0, 64.0)), module, PinkTrombone::CAVITYX_INPUT));
-		addInput(createInputCentered<InJack>(mm2px(Vec(42.0, 68.0)), module, PinkTrombone::CAVITYY_INPUT));
-		addInput(createInputCentered<InJack>(mm2px(Vec(33.0, 82.0)), module, PinkTrombone::TONGUEX_INPUT));
-		addInput(createInputCentered<InJack>(mm2px(Vec(42.0, 86.0)), module, PinkTrombone::TONGUEY_INPUT));
-		addInput(createInputCentered<InJack>(mm2px(Vec(42.0, 104.0)), module, PinkTrombone::SOFTPALATE_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(9.982, 36.816)), module, PinkTrombone::TONGUEXI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(25.482, 36.816)), module, PinkTrombone::TONGUEYI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40.982, 44.816)), module, PinkTrombone::THROATXI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(56.482, 44.816)), module, PinkTrombone::THROATYI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(10.595, 59.982)), module, PinkTrombone::FRICFCI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(34.595, 59.982)), module, PinkTrombone::FRICQI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(58.595, 59.982)), module, PinkTrombone::FRICL_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(29.822, 76.971)), module, PinkTrombone::TENSEI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(19.457, 92.996)), module, PinkTrombone::VOCT_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(40.872, 118.936)), module, PinkTrombone::FMI_INPUT));
+		addInput(createInputCentered<PJ301MPort>(mm2px(Vec(63.872, 118.936)), module, PinkTrombone::VIBI_INPUT));
 
-		addOutput(createOutputCentered<OutJack>(mm2px(Vec(25.4, 121.0)), module, PinkTrombone::OUTPUT_OUTPUT));
+		addOutput(createOutputCentered<PJ301MPort>(mm2px(Vec(88.022, 93.939)), module, PinkTrombone::OUTPUT_OUTPUT));
 	}
 };
 
-
-Model* modelPinkTrombone = createModel<PinkTrombone, PinkTromboneWidget>("PinkTrombone");
+Model *modelPinkTrombone = createModel<PinkTrombone, PinkTromboneWidget>("PinkTrombone");
