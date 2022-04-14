@@ -25,7 +25,7 @@ struct PinkTrombone : Module {
 		TONGUEX_PARAM,
 		TONGUEY_PARAM,
 		NOSE_PARAM,
-		LIP_PARAM,
+		//LIP_PARAM,
 		THROATX_PARAM,
 		THROATY_PARAM,
 		TONGUEXA_PARAM,
@@ -69,6 +69,11 @@ struct PinkTrombone : Module {
 		OUTPUTS_LEN
 	};
 	enum LightId {
+		ENUMS(MAIN_LIGHT, 3),
+		ENUMS(U_LIGHT, 3),
+		ENUMS(D_LIGHT, 3),
+		ENUMS(L_LIGHT, 3),
+		ENUMS(R_LIGHT, 3),
 		LIGHTS_LEN
 	};
 
@@ -118,7 +123,7 @@ struct PinkTrombone : Module {
 		configParam(THROATXA_PARAM, -1.f, 1.f, 0.f, "Throat X Attenuversion");
 		configParam(THROATYA_PARAM, -1.f, 1.f, 0.f, "Threat Y Attenuversion");
 		configParam(TIP_PARAM, 0.f, 9.f, 2.2, "Tip");
-		configParam(LIP_PARAM, 0.f, 9.f, 0.f, "Lip");
+		// configParam(LIP_PARAM, 0.f, 9.f, 0.f, "Lip");
 		configParam(BLADE_PARAM, 0.f, 1.f, 0.87, "Blade");
 		configParam(FRICFC_PARAM, 0.f, 1.f, 0.5, "Fricative & Aspiration Fc");
 		configParam(FRICFCA_PARAM, -1.f, 1.f, 0.f, "Fricative & Aspiration Fc Attenuversion");
@@ -197,7 +202,8 @@ struct PinkTrombone : Module {
 		if (destroying)
 			return;
 
-		glottis->setIntensity(params[FRICL_PARAM].getValue()+(params[FRICLA_PARAM].getValue()*(inputs[FRICL_INPUT].getVoltage()/10.f)));
+		float fricativeLevel = params[FRICL_PARAM].getValue()+(params[FRICLA_PARAM].getValue()*(inputs[FRICL_INPUT].getVoltage()/10.f)); 
+		glottis->setIntensity(fricativeLevel);
 
 		double purenoise = whiteNoise->runStep();
 		double asp = aspirateFilter->runStep(purenoise);
@@ -207,11 +213,21 @@ struct PinkTrombone : Module {
 		masterToFilter *= pow(2.0, params[VOCTA_PARAM].getValue() * inputs[VOCT_INPUT].getVoltage());
 		masterToFilter *= params[FCFOLLOW_PARAM].getValue();
 
-		fricativeFilter->setFrequency(rack::clamp(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter, 0.f, sampleRate/2.01));
-		fricativeFilter->setQ(rack::clamp(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())), 0.00001, 1.5));
+		// I have these seperate in case it's desirable to to have the filters have a different cut off relative to one another later.
+		float newFricFC = rack::clamp(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter, 0.f, sampleRate/2.01);
+		float newAspFC = rack::clamp(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter, 0.f, sampleRate/2.01);
+		
+		float newQ = rack::clamp(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())), 0.00001, 1.5);
 
-		aspirateFilter->setFrequency(rack::clamp(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter, 0.f, sampleRate/2.01));
-		aspirateFilter->setQ(rack::clamp(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())), 0.00001, 1.5));
+		fricativeFilter->setFrequency(newFricFC);
+		fricativeFilter->setQ(newQ);
+
+		aspirateFilter->setFrequency(newAspFC);
+		aspirateFilter->setQ(newQ);
+
+		lights[U_LIGHT + 0].setBrightness(newAspFC / (sampleRate/20.0));
+		lights[U_LIGHT + 1].setBrightness(1.2-newQ);
+		lights[U_LIGHT + 2].setBrightness(fricativeLevel);
 
 		// int lipStart; -- Nothing happens.
 		// int bladeStart; -- This one works
@@ -231,6 +247,7 @@ struct PinkTrombone : Module {
 		tractProps.noseStart = (int)(params[NOSE_PARAM].getValue());
 		tractProps.bladeStart = (int)(1.f + params[BLADE_PARAM].getValue() * 10.f);
 		tractProps.tipStart = (int)(params[TIP_PARAM].getValue()*params[BLADE_PARAM].getValue());
+
 
 		// Glottis
 		// the original code has a loop from j to n here that I *THINK* is accounting for the buffer, which isn't applicable here.
@@ -253,9 +270,15 @@ struct PinkTrombone : Module {
 
 		tongueX = params[TONGUEX_PARAM].getValue() + (params[TONGUEXA_PARAM].getValue() * (inputs[TONGUEXI_INPUT].getVoltage()/20.f));
 		tongueY = params[TONGUEY_PARAM].getValue() + (params[TONGUEYA_PARAM].getValue() * (inputs[TONGUEYI_INPUT].getVoltage()/20.f));
+		lights[L_LIGHT + 0].setBrightness(tongueX);
+		lights[L_LIGHT + 2].setBrightness(tongueY);
+		lights[L_LIGHT + 1].setBrightness(tongueX*tongueY);
 		// Constriction X has some impact, but not as much as I think it should.
 		constrictionX = params[THROATX_PARAM].getValue() + (params[THROATXA_PARAM].getValue() * (inputs[THROATXI_INPUT].getVoltage()/20.f));
 		constrictionY = params[THROATY_PARAM].getValue() + (params[THROATYA_PARAM].getValue() * (inputs[THROATYI_INPUT].getVoltage()/20.f));
+		lights[R_LIGHT + 0].setBrightness(constrictionX*1.f);
+		lights[R_LIGHT + 2].setBrightness((constrictionY*20.f)-(5.75*2.f));
+		lights[R_LIGHT + 1].setBrightness((constrictionX*1.f)*(constrictionY*20.f)-(5.75*2.f));
 
 		// fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
 		//  This affects the amount of noise being added when the throat is nearly closed (Cavity Y < ~.67). This should be exposed on the panel.
@@ -283,7 +306,8 @@ struct PinkTrombone : Module {
 
 		tract->setRestDiameter(tongueIndex, tongueDiameter);
 		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
-		glottis->finishBlock(params[VIB_PARAM].getValue()+(params[VIBA_PARAM].getValue() * inputs[VIBI_INPUT].getVoltage())); //This argument is the amount of vibrato
+		float vibAmount = params[VIB_PARAM].getValue()+(params[VIBA_PARAM].getValue() * inputs[VIBI_INPUT].getVoltage());
+		glottis->finishBlock(vibAmount); //This argument is the amount of vibrato
 		tract->finishBlock();
 
 		// It likes to crash in a fun "Lets output an wave of alternating +1000000 -1000000 samples that seek to destory all ears in a 10 mile radius. So, clamping.
@@ -298,6 +322,13 @@ struct PinkTrombone : Module {
 			// misunderstanding here, tenseness is *not* volume. There must be another parameter for volume somewhere...
 			float tenseness = rack::clamp(params[TENSE_PARAM].getValue() + (params[TENSEA_PARAM].getValue() * (inputs[TENSEI_INPUT].getVoltage()/10.f)), 0.f, 1.f);
 			glottis->setTargetTenseness(tenseness);
+			lights[MAIN_LIGHT + 0].setBrightness(pitch/(sampleRate/16.0));
+			lights[MAIN_LIGHT + 1].setBrightness(fm);
+			lights[MAIN_LIGHT + 2].setBrightness(vibAmount);
+
+			lights[D_LIGHT + 0].setBrightness(tenseness);
+			lights[D_LIGHT + 1].setBrightness(tract->lipOutput);
+			lights[D_LIGHT + 2].setBrightness(tract->noseOutput);
 		}
 	}
 
@@ -320,7 +351,12 @@ struct PinkTromboneWidget : ModuleWidget
 		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(9.982, 11.816)), module, PinkTrombone::TONGUEX_PARAM));
 		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(25.482, 11.816)), module, PinkTrombone::TONGUEY_PARAM));
 		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(75.581, 18.708)), module, PinkTrombone::NOSE_PARAM));
-		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(90.581, 18.708)), module, PinkTrombone::LIP_PARAM));
+		//addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(90.581, 18.708)), module, PinkTrombone::LIP_PARAM));
+		addChild(createLightCentered<LargeLight<RedGreenBlueLight>>(mm2px(Vec(90.581, 18.708)), module, PinkTrombone::MAIN_LIGHT));
+		addChild(createLightCentered<MediumLight<RedGreenBlueLight>>(mm2px(Vec(95.581, 18.708)), module, PinkTrombone::R_LIGHT));
+		addChild(createLightCentered<MediumLight<RedGreenBlueLight>>(mm2px(Vec(85.581, 18.708)), module, PinkTrombone::L_LIGHT));
+		addChild(createLightCentered<MediumLight<RedGreenBlueLight>>(mm2px(Vec(90.581, 13.708)), module, PinkTrombone::U_LIGHT));
+		addChild(createLightCentered<MediumLight<RedGreenBlueLight>>(mm2px(Vec(90.581, 23.708)), module, PinkTrombone::D_LIGHT));
 		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(40.982, 19.816)), module, PinkTrombone::THROATX_PARAM));
 		addParam(createParamCentered<RoundBlackKnob>(mm2px(Vec(56.482, 19.816)), module, PinkTrombone::THROATY_PARAM));
 		addParam(createParamCentered<RoundSmallBlackKnob>(mm2px(Vec(9.982, 26.816)), module, PinkTrombone::TONGUEXA_PARAM));
