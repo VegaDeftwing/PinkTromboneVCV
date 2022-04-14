@@ -303,9 +303,10 @@ struct PinkTrombone : Module {
 			fricativeIntensity += 0.1; // TODO ex recto
 			fricativeIntensity = minf(1.0, this->fricativeIntensity);
 		}
-
+		//TODO: The high CPU usage is possibly from these two:
 		tract->setRestDiameter(tongueIndex, tongueDiameter);
 		tract->setConstriction(constrictionIndex, constrictionDiameter, fricativeIntensity);
+		
 		float vibAmount = params[VIB_PARAM].getValue()+(params[VIBA_PARAM].getValue() * inputs[VIBI_INPUT].getVoltage());
 		glottis->finishBlock(vibAmount); //This argument is the amount of vibrato
 		tract->finishBlock();
