@@ -121,8 +121,8 @@ struct PinkTrombone : Module {
 		configParam(LIP_PARAM, 0.f, 9.f, 0.f, "Lip");
 		configParam(BLADE_PARAM, 0.f, 1.f, 0.87, "Blade");
 		configParam(FRICFC_PARAM, 0.f, 1.f, 0.5, "Fricative & Aspiration Fc");
-		configParam(FRICFCA_PARAM, 0.f, 1.f, 0.f, "Fricative & Aspiration Fc Attenuversion");
-		configParam(FRICQ_PARAM, 1.2, 0.f, 0.5, "Frciative & Aspiration Q");
+		configParam(FRICFCA_PARAM, -1.f, 1.f, 0.f, "Fricative & Aspiration Fc Attenuversion");
+		configParam(FRICQ_PARAM, 1.2, 0.00001, 0.5, "Frciative & Aspiration Q");
 		configParam(FRICQA_PARAM, -1.f, 1.f, 0.f, "Fricative Q Attenuversion");
 		configParam(FRICL_PARAM, 0.f, 1.f, 0.7325, "Fricative Level");
 		configParam(FRICLA_PARAM, -1.f, 1.f, 0.f, "Fricative Level Attenuversion");
@@ -207,11 +207,11 @@ struct PinkTrombone : Module {
 		masterToFilter *= pow(2.0, params[VOCTA_PARAM].getValue() * inputs[VOCT_INPUT].getVoltage());
 		masterToFilter *= params[FCFOLLOW_PARAM].getValue();
 
-		fricativeFilter->setFrequency(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter);
-		fricativeFilter->setQ(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())));
+		fricativeFilter->setFrequency(rack::clamp(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter, 0.f, sampleRate/2.01));
+		fricativeFilter->setQ(rack::clamp(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())), 0.00001, 1.5));
 
-		aspirateFilter->setFrequency(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter);
-		aspirateFilter->setQ(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())));
+		aspirateFilter->setFrequency(rack::clamp(params[FRICFC_PARAM].getValue() * 1000.f + (params[FRICFCA_PARAM].getValue() * (inputs[FRICFCI_INPUT].getVoltage() * 2000.f)) + masterToFilter, 0.f, sampleRate/2.01));
+		aspirateFilter->setQ(rack::clamp(params[FRICQ_PARAM].getValue() + (params[FRICQA_PARAM].getValue() * (inputs[FRICQI_INPUT].getVoltage())), 0.00001, 1.5));
 
 		// int lipStart; -- Nothing happens.
 		// int bladeStart; -- This one works
@@ -251,11 +251,11 @@ struct PinkTrombone : Module {
 
 		// I think vocal output is the actual audio out, so that should be good to go - however, it's a double, so it will need to be scaled down to a float with the correct voltage range.
 
-		tongueX = params[TONGUEX_PARAM].getValue() + (params[TONGUEXA_PARAM].getValue() * inputs[TONGUEXI_INPUT].getVoltage());
-		tongueY = params[TONGUEY_PARAM].getValue() + (params[TONGUEYA_PARAM].getValue() * inputs[TONGUEYI_INPUT].getVoltage());
+		tongueX = params[TONGUEX_PARAM].getValue() + (params[TONGUEXA_PARAM].getValue() * (inputs[TONGUEXI_INPUT].getVoltage()/20.f));
+		tongueY = params[TONGUEY_PARAM].getValue() + (params[TONGUEYA_PARAM].getValue() * (inputs[TONGUEYI_INPUT].getVoltage()/20.f));
 		// Constriction X has some impact, but not as much as I think it should.
-		constrictionX = params[THROATX_PARAM].getValue() + (params[THROATXA_PARAM].getValue() * inputs[THROATXI_INPUT].getVoltage());
-		constrictionY = params[THROATY_PARAM].getValue() + ((params[THROATYA_PARAM].getValue() * inputs[THROATYI_INPUT].getVoltage()) * 0.1);
+		constrictionX = params[THROATX_PARAM].getValue() + (params[THROATXA_PARAM].getValue() * (inputs[THROATXI_INPUT].getVoltage()/20.f));
+		constrictionY = params[THROATY_PARAM].getValue() + (params[THROATYA_PARAM].getValue() * (inputs[THROATYI_INPUT].getVoltage()/20.f));
 
 		// fricativeIntensity = params[CAVITYYO_PARAM].getValue() + params[CAVITYYO_PARAM].getValue() * inputs[SOFTPALATE_INPUT].getVoltage();
 		//  This affects the amount of noise being added when the throat is nearly closed (Cavity Y < ~.67). This should be exposed on the panel.
@@ -294,9 +294,9 @@ struct PinkTrombone : Module {
 			pitch = dsp::FREQ_C4 + params[MASTERPITCH_PARAM].getValue() * dsp::FREQ_C4;
 			pitch = pitch * pow(2.0, params[VOCTA_PARAM].getValue() * inputs[VOCT_INPUT].getVoltage());
 			fm = (params[FMA_PARAM].getValue() * inputs[FMI_INPUT].getVoltage()) * dsp::FREQ_C4;
-			glottis->setTargetFrequency(pitch+fm);
+			glottis->setTargetFrequency(rack::clamp(pitch+fm, (float)2., (float)dsp::FREQ_C4*10.));
 			// misunderstanding here, tenseness is *not* volume. There must be another parameter for volume somewhere...
-			float tenseness = params[TENSE_PARAM].getValue() + (params[TENSEA_PARAM].getValue() * inputs[TENSEI_INPUT].getVoltage());
+			float tenseness = rack::clamp(params[TENSE_PARAM].getValue() + (params[TENSEA_PARAM].getValue() * (inputs[TENSEI_INPUT].getVoltage()/10.f)), 0.f, 1.f);
 			glottis->setTargetTenseness(tenseness);
 		}
 	}
