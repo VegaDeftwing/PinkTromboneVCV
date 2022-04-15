@@ -12,6 +12,8 @@
 //#include "../JuceLibraryCode/JuceHeader.h"
 #include "Glottis.hpp"
 #include "config.h"
+// #include <rack.hpp>
+#include "../FastTrigo/fasttrigo.h"
 
 struct t_transient;
 

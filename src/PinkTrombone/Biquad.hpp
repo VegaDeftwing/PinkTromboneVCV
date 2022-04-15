@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 #include "config.h"
+// #include <rack.hpp>
+#include "../FastTrigo/fasttrigo.h"
 
 class Biquad {
 public:

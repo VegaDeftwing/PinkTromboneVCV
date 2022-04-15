@@ -7,7 +7,6 @@
 
 #include "Biquad.hpp"
 #include <math.h>
-#include "../plugin.hpp"
 
 Biquad::Biquad(sample_t sampleRate) : frequency(200),
 									  q(0.5),
@@ -25,8 +24,8 @@ Biquad::Biquad(sample_t sampleRate) : frequency(200),
 void Biquad::updateCoefficients()
 {
 	sample_t omega = this->frequency * this->twopiOverSampleRate;
-	sample_t sn = rack::simd::sin(omega);
-	sample_t cs = rack::simd::cos(omega);
+	sample_t sn = FTA::sin(omega);
+	sample_t cs = FTA::cos(omega);
 	sample_t one_over_Q = 1. / this->q;
 	sample_t alpha = sn * 0.5 * one_over_Q;
 

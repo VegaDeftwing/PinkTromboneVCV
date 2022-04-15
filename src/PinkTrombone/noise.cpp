@@ -80,8 +80,8 @@ short timeseed() {
  }*/
 
 // Skewing and unskewing factors for 2, 3, and 4 dimensions
-static sample_t F2 = 0.5 * (sqrt(3.0) - 1.0);
-static sample_t G2 = (3 - sqrt(3.0)) / 6.0;
+static sample_t F2 = 0.5 * (FTA::sqrt(3.0) - 1.0);
+static sample_t G2 = (3 - FTA::sqrt(3.0)) / 6.0;
 
 // 2D simplex noise
 sample_t simplex2(sample_t xin, sample_t yin) {
@@ -109,7 +109,7 @@ sample_t simplex2(sample_t xin, sample_t yin) {
 	}
 	// A step of (1,0) in (i,j) means a step of (1-c,-c) in (x,y), and
 	// a step of (0,1) in (i,j) means a step of (-c,1-c) in (x,y), where
-	// c = (3-sqrt(3))/6
+	// c = (3-FTA::sqrt(3))/6
 	sample_t x1 = x0 - i1 + G2; // Offsets for middle corner in (x,y) unskewed coords
 	sample_t y1 = y0 - j1 + G2;
 	sample_t x2 = x0 - 1 + 2 * G2; // Offsets for last corner in (x,y) unskewed coords

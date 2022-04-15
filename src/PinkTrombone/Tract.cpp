@@ -9,7 +9,6 @@
 #include <math.h>
 #include "util.h"
 #include <cstring>
-#include "../plugin.hpp"
 
 typedef struct t_transient
 {
@@ -240,8 +239,8 @@ void Tract::addTurbulenceNoiseAtIndex(sample_t turbulenceNoise, sample_t index, 
 	long i = (long)floor(index);
 	sample_t delta = index - (sample_t)i;
 	turbulenceNoise *= glottalNoiseModulator;
-	sample_t thinness0 = rack::clamp((float)8.0 * (0.7 - diameter),(float) 0.0,(float) 1.0);
-	sample_t openness = rack::clamp((float)30.0 * (diameter - 0.3),(float) 0.0,(float) 1.0);
+	sample_t thinness0 = clamp(8.0 * (0.7 - diameter), 0.0, 1.0);
+	sample_t openness = clamp(30.0 * (diameter - 0.3), 0.0, 1.0);
 	sample_t noise0 = turbulenceNoise * (1.0 - delta) * thinness0 * openness;
 	sample_t noise1 = turbulenceNoise * delta * thinness0 * openness;
 	this->R[i + 1] += noise0 / 2.0;
@@ -303,7 +302,7 @@ void Tract::setRestDiameter(sample_t tongueIndex, sample_t tongueDiameter)
 	{
 		sample_t t = 1.1 * M_PI * (sample_t)(tongueIndex - i) / (sample_t)(this->tractProps->tipStart - this->tractProps->bladeStart);
 		sample_t fixedTongueDiameter = 2 + (tongueDiameter - 2) / 1.5;
-		sample_t curve = (1.5 - fixedTongueDiameter + 1.7) * rack::simd::cos(t);
+		sample_t curve = (1.5 - fixedTongueDiameter + 1.7) * FTA::cos(t);
 		if (i == this->tractProps->bladeStart - 2 || i == this->tractProps->lipStart - 1)
 			curve *= 0.8;
 		if (i == this->tractProps->bladeStart || i == this->tractProps->lipStart - 2)
@@ -315,6 +314,39 @@ void Tract::setRestDiameter(sample_t tongueIndex, sample_t tongueDiameter)
 		this->targetDiameter[i] = this->restDiameter[i];
 	}
 }
+
+// void Tract::setRestDiameter(sample_t tongueIndex, sample_t tongueDiameter)
+// {
+	// this->tractProps->tongueIndex = tongueIndex;
+	// this->tractProps->tongueDiameter = tongueDiameter;
+	// int count_4 = 0;
+	// rack::simd::float_4 t_4;
+	// rack::simd::float_4 cos_4;
+	// for (long i = this->tractProps->bladeStart; i < this->tractProps->lipStart; i++)
+	// {
+		// if (!(count_4 % 4))
+		// {
+			// // calc t 4 times
+			// for (auto j = 0; j < 4; ++j)
+			// {
+				// t_4[j] = 1.1 * M_PI * (sample_t)(tongueIndex - i + j) / (sample_t)(this->tractProps->tipStart - this->tractProps->bladeStart);
+			// }
+			// cos_4 = rack::simd::cos(t_4);
+		// }
+		// sample_t fixedTongueDiameter = 2 + (tongueDiameter - 2) / 1.5;
+		// sample_t curve = (1.5 - fixedTongueDiameter + 1.7) * cos_4[count_4 % 4];
+		// if (i == this->tractProps->bladeStart - 2 || i == this->tractProps->lipStart - 1)
+			// curve *= 0.8;
+		// if (i == this->tractProps->bladeStart || i == this->tractProps->lipStart - 2)
+			// curve *= 0.94;
+		// this->restDiameter[i] = 1.5 - curve;
+		// ++count_4;
+	// }
+	// for (long i = 0; i < this->tractProps->n; i++)
+	// {
+		// this->targetDiameter[i] = this->restDiameter[i];
+	// }
+// }
 
 void Tract::setConstriction(sample_t cindex, sample_t cdiam, sample_t fricativeIntensity)
 {
@@ -358,7 +390,7 @@ void Tract::setConstriction(sample_t cindex, sample_t cdiam, sample_t fricativeI
 			else if (relpos > width)
 				shrink = 1;
 			else
-				shrink = 0.5 * (1 - rack::simd::cos(M_PI * relpos / (sample_t)width));
+				shrink = 0.5 * (1 - FTA::cos(M_PI * relpos / (sample_t)width));
 			if (diameter < this->targetDiameter[intIndex + i])
 			{
 				this->targetDiameter[intIndex + i] = diameter + (this->targetDiameter[intIndex + i] - diameter) * shrink;
@@ -372,7 +404,7 @@ void Tract::processTransients()
 	for (int i = 0; i < this->transientCount; i++)
 	{
 		t_transient *trans = this->transients + i;
-		sample_t amplitude = trans->strength * rack::simd::pow(2.0, -trans->exponent * trans->timeAlive);
+		sample_t amplitude = trans->strength * pow(2.0, -trans->exponent * trans->timeAlive);
 		this->R[trans->position] += amplitude / 2.0;
 		this->L[trans->position] += amplitude / 2.0;
 		trans->timeAlive += 1.0 / (this->sampleRate * 2.0);
@@ -458,7 +490,7 @@ void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t l
 
 		if (updateAmplitudes)
 		{
-			sample_t amplitude = rack::simd::abs(this->R[i] + this->L[i]);
+			sample_t amplitude = fabs(this->R[i] + this->L[i]);
 			if (amplitude > this->maxAmplitude[i])
 				this->maxAmplitude[i] = amplitude;
 			else
@@ -488,7 +520,7 @@ void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t l
 
 		if (updateAmplitudes)
 		{
-			sample_t amplitude = rack::simd::abs(this->noseR[i] + this->noseL[i]);
+			sample_t amplitude = fabs(this->noseR[i] + this->noseL[i]);
 			if (amplitude > this->noseMaxAmplitude[i])
 				this->noseMaxAmplitude[i] = amplitude;
 			else

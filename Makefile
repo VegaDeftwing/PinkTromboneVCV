@@ -12,6 +12,7 @@ LDFLAGS +=
 # Add .cpp files to the build
 PINK_SOURCES = $(wildcard src/PinkTrombone/*cpp)
 SOURCES += $(wildcard src/*.cpp) $(PINK_SOURCES)
+SOURCES += $(wildcard src/FastTrigo/*.cpp)
 
 # Add files to the ZIP package when running `make dist`
 # The compiled plugin and "plugin.json" are automatically added.

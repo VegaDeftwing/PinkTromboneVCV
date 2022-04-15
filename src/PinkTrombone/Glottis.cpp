@@ -9,7 +9,6 @@
 #include <math.h>
 #include "noise.hpp"
 #include "util.h"
-#include "../plugin.hpp"
 
 Glottis::Glottis(double sampleRate) : timeInWaveform(0),
 									  oldFrequency(140),
@@ -54,7 +53,7 @@ void Glottis::setupWaveform(sample_t lambda)
 	sample_t Te = Tp + Tp * Rk;
 
 	sample_t epsilon = 1 / Ta;
-	sample_t shift = rack::simd::exp(-epsilon * (1 - Te));
+	sample_t shift = exp(-epsilon * (1 - Te));
 	sample_t Delta = 1 - shift; //divide by this to scale RHS
 
 	sample_t RHSIntegral = (1 / epsilon) * (shift - 1) + (1 - Te) * shift;
@@ -64,7 +63,7 @@ void Glottis::setupWaveform(sample_t lambda)
 	sample_t totalUpperIntegral = -totalLowerIntegral;
 
 	sample_t omega = M_PI / Tp;
-	sample_t s = rack::simd::sin(omega * Te);
+	sample_t s = FTA::sin(omega * Te);
 	// need E0*e^(alpha*Te)*s = -1 (to meet the return at -1)
 	// and E0*e^(alpha*Tp/2) * Tp*2/pi = totalUpperIntegral
 	//             (our approximation of the integral up to Tp)
@@ -76,7 +75,7 @@ void Glottis::setupWaveform(sample_t lambda)
 	sample_t y = -M_PI * s * totalUpperIntegral / (Tp * 2.0);
 	sample_t z = log(y);
 	sample_t alpha = z / (Tp / 2.0 - Te);
-	sample_t E0 = -1.0 / (s * rack::simd::exp(alpha * Te));
+	sample_t E0 = -1.0 / (s * exp(alpha * Te));
 	this->alpha = alpha;
 	this->E0 = E0;
 	this->epsilon = epsilon;
@@ -88,7 +87,7 @@ void Glottis::setupWaveform(sample_t lambda)
 
 sample_t Glottis::getNoiseModulator()
 {
-	sample_t voiced = 0.1 + 0.2 * fmax(0.0, rack::simd::sin(M_PI * 2 * this->timeInWaveform / this->waveformLength));
+	sample_t voiced = 0.1 + 0.2 * fmax(0.0, FTA::sin(M_PI * 2 * this->timeInWaveform / this->waveformLength));
 	//return 0.3;
 	return this->targetTenseness * this->intensity * voiced + (1 - this->targetTenseness * this->intensity) * 0.3;
 }
@@ -111,7 +110,7 @@ void Glottis::setIntensity(sample_t intensity)
 void Glottis::finishBlock(float vibratodepth)
 {
 	sample_t vibrato = 0;
-	//vibrato += this->vibratoAmount * sin(2 * M_PI * this->totalTime * this->vibratoFrequency);
+	//vibrato += this->vibratoAmount * FTA::sin(2 * M_PI * this->totalTime * this->vibratoFrequency);
 	//Vibrato has a base amount defined here. The depth of this should probably be an accessible prameter.
 	if (this->totalTime == 512)
 	{
@@ -142,16 +141,16 @@ void Glottis::finishBlock(float vibratodepth)
 		this->intensity += 0.13;
 	else
 		this->intensity -= 0.05;
-	this->intensity = rack::clamp(this->intensity, 0.0, 1.0);
+	this->intensity = clamp(this->intensity, 0.0, 1.0);
 }
 
 sample_t Glottis::normalizedLFWaveform(sample_t t)
 {
 	sample_t output;
 	if (t > this->Te)
-		output = (-rack::simd::exp(-this->epsilon * (t - this->Te)) + this->shift) / this->Delta;
+		output = (-exp(-this->epsilon * (t - this->Te)) + this->shift) / this->Delta;
 	else
-		output = this->E0 * rack::simd::exp(this->alpha * t) * rack::simd::sin(this->omega * t);
+		output = this->E0 * exp(this->alpha * t) * FTA::sin(this->omega * t);
 
 	return output * this->intensity * this->loudness;
 }
@@ -168,7 +167,7 @@ sample_t Glottis::runStep(sample_t lambda, sample_t noiseSource)
 		this->setupWaveform(lambda);
 	}
 	sample_t out = this->normalizedLFWaveform(this->timeInWaveform / this->waveformLength);
-	sample_t aspiration = this->intensity * (1 - sqrt(this->targetTenseness)) * this->getNoiseModulator() * noiseSource;
+	sample_t aspiration = this->intensity * (1 - FTA::sqrt(this->targetTenseness)) * this->getNoiseModulator() * noiseSource;
 	aspiration *= 0.2 + 0.02 * simplex1(this->totalTime * 1.99);
 	out += aspiration;
 	return out;
