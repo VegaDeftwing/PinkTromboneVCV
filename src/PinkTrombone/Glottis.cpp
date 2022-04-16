@@ -167,7 +167,7 @@ sample_t Glottis::runStep(sample_t lambda, sample_t noiseSource)
 		this->setupWaveform(lambda);
 	}
 	sample_t out = this->normalizedLFWaveform(this->timeInWaveform / this->waveformLength);
-	sample_t aspiration = this->intensity * (1 - FTA::sqrt(this->targetTenseness)) * this->getNoiseModulator() * noiseSource;
+	sample_t aspiration = this->intensity * (1 - sqrt(this->targetTenseness)) * this->getNoiseModulator() * noiseSource;
 	aspiration *= 0.2 + 0.02 * simplex1(this->totalTime * 1.99);
 	out += aspiration;
 	return out;
