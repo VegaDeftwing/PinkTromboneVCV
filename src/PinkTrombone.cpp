@@ -184,7 +184,7 @@ struct PinkTrombone : Module {
 		fricativeFilter->setQ(0.5);
 		fricativeFilter->setFrequency(1000);
 
-		processDivider.setDivision((int)sampleRate/24);
+		processDivider.setDivision(24);
 		lightDivider.setDivision((int)sampleRate/1000);
 
 		// m_filling_buffer = m_buffer_A;
