@@ -129,7 +129,7 @@ struct PinkTrombone : Module {
 		configParam(TONGUEXA_PARAM, -1.f, 1.f, 0.f, "Tongue X Attenuversion");
 		configParam(TONGUEYA_PARAM, -1.f, 1.f, 0.f, "Tongue Y Attenuversion");
 		configParam(THROATXA_PARAM, -1.f, 1.f, 0.f, "Throat X Attenuversion");
-		configParam(THROATYA_PARAM, -1.f, 1.f, 0.f, "Threat Y Attenuversion");
+		configParam(THROATYA_PARAM, -1.f, 1.f, 0.f, "Throat Y Attenuversion");
 		configParam(TIP_PARAM, 0.f, 9.f, 2.2, "Tip");
 		// configParam(LIP_PARAM, 0.f, 9.f, 0.f, "Lip");
 		configParam(BLADE_PARAM, 0.f, 1.f, 0.87, "Blade");
