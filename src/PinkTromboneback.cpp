@@ -29,9 +29,9 @@
 // 		CAVITYYO_PARAM,
 // 		CAVITYYA_PARAM,
 // 		TONGUEXO_PARAM,
-// 		TOUNGEXA_PARAM,
+// 		TONGUEXA_PARAM,
 // 		TONGUEYO_PARAM,
-// 		TOUNGEYA_PARAM,
+// 		TONGUEYA_PARAM,
 // 		SOFTPALATE_PARAM,
 // 		PARAMS_LEN
 // 	};
@@ -99,9 +99,9 @@
 // 		configParam(CAVITYYO_PARAM, 0.575, 0.69125, 0.69125, "Cavity Y Offset");
 // 		configParam(CAVITYYA_PARAM, 0.f, 1.f, 0.f, "Cavity Y Attenuation");
 // 		configParam(TONGUEXO_PARAM, -1.f, 1.f, 0.f, "Tongue X Offset");
-// 		configParam(TOUNGEXA_PARAM, 0.f, 1.f, 0.f, "Tounge X Attenuation");
-// 		configParam(TONGUEYO_PARAM, -1.f, 1.f, 0.f, "Tounge Y Offset");
-// 		configParam(TOUNGEYA_PARAM, 0.f, 1.f, 0.f, "Tounge Y Attenuation");
+// 		configParam(TONGUEXA_PARAM, 0.f, 1.f, 0.f, "Tongue X Attenuation");
+// 		configParam(TONGUEYO_PARAM, -1.f, 1.f, 0.f, "Tongue Y Offset");
+// 		configParam(TONGUEYA_PARAM, 0.f, 1.f, 0.f, "Tongue Y Attenuation");
 // 		configParam(SOFTPALATE_PARAM, 0.f, 1.f, 0.f, "Soft Palate Toggle");
 // 		configInput(PITCH_INPUT, "Pitch V/Oct");
 // 		configInput(VOL_INPUT, "VCA Control");
@@ -190,8 +190,8 @@
 // 		// I think vocal output is the actual audio out, so that should be good to go - however, it's a double, so it will need to be scaled down to a float with the correct voltage range.
 
 
-//         tongueX = params[TONGUEXO_PARAM].getValue() + (params[TOUNGEXA_PARAM].getValue() * inputs[TONGUEX_INPUT].getVoltage());
-//         tongueY = params[TONGUEYO_PARAM].getValue() + (params[TOUNGEYA_PARAM].getValue() * inputs[TONGUEY_INPUT].getVoltage());
+//         tongueX = params[TONGUEXO_PARAM].getValue() + (params[TONGUEXA_PARAM].getValue() * inputs[TONGUEX_INPUT].getVoltage());
+//         tongueY = params[TONGUEYO_PARAM].getValue() + (params[TONGUEYA_PARAM].getValue() * inputs[TONGUEY_INPUT].getVoltage());
 // 		//Constriction X has some impact, but not as much as I think it should.
 //         constrictionX = params[CAVITYXO_PARAM].getValue() + (params[CAVITYXA_PARAM].getValue() * inputs[CAVITYX_INPUT].getVoltage());
 //         constrictionY = params[CAVITYYO_PARAM].getValue() + ((params[CAVITYYA_PARAM].getValue() * inputs[CAVITYY_INPUT].getVoltage()) * 0.1);
@@ -280,9 +280,9 @@
 // 		addParam(createParamCentered<HexKnob>(mm2px(Vec(8.0, 67.941)), module, PinkTrombone::CAVITYYO_PARAM));
 // 		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(8.0, 67.941)), module, PinkTrombone::CAVITYYA_PARAM));
 // 		addParam(createParamCentered<HexKnob>(mm2px(Vec(17.0, 82.0)), module, PinkTrombone::TONGUEXO_PARAM));
-// 		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(17.0, 82.0)), module, PinkTrombone::TOUNGEXA_PARAM));
+// 		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(17.0, 82.0)), module, PinkTrombone::TONGUEXA_PARAM));
 // 		addParam(createParamCentered<HexKnob>(mm2px(Vec(8.0, 85.941)), module, PinkTrombone::TONGUEYO_PARAM));
-// 		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(8.0, 85.941)), module, PinkTrombone::TOUNGEYA_PARAM));
+// 		addParam(createParamCentered<SmallHexKnobInv>(mm2px(Vec(8.0, 85.941)), module, PinkTrombone::TONGUEYA_PARAM));
 // 		addParam(createParamCentered<CKD6>(mm2px(Vec(8.0, 104.0)), module, PinkTrombone::SOFTPALATE_PARAM));
 
 // 		addInput(createInputCentered<InJack>(mm2px(Vec(33.0, 46.0)), module, PinkTrombone::PITCH_INPUT));
