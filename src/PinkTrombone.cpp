@@ -135,7 +135,7 @@ struct PinkTrombone : Module {
 		configParam(BLADE_PARAM, 0.f, 1.f, 0.87, "Blade");
 		configParam(FRICFC_PARAM, 0.f, 1.f, 0.5, "Fricative & Aspiration Fc");
 		configParam(FRICFCA_PARAM, -1.f, 1.f, 0.f, "Fricative & Aspiration Fc Attenuversion");
-		configParam(FRICQ_PARAM, 1.2, 0.00001, 0.5, "Frciative & Aspiration Q");
+		configParam(FRICQ_PARAM, 1.2, 0.00001, 0.5, "Fricative & Aspiration Q");
 		configParam(FRICQA_PARAM, -1.f, 1.f, 0.f, "Fricative Q Attenuversion");
 		configParam(FRICL_PARAM, 0.f, 1.f, 0.7325, "Fricative Level");
 		configParam(FRICLA_PARAM, -1.f, 1.f, 0.f, "Fricative Level Attenuversion");
@@ -147,13 +147,13 @@ struct PinkTrombone : Module {
 		configParam(FMA_PARAM, -1.f, 1.f, 0.f, "FM Attenuversion");
 		configParam(VIBA_PARAM, 0.f, 1.f, 0.f, "Vibrato Attenuversion");
 		configParam(VIB_PARAM, 0.f, 1.f, 0.35, "Vibrato");
-		configInput(TONGUEXI_INPUT, "Tounge X");
-		configInput(TONGUEYI_INPUT, "Tounge Y");
+		configInput(TONGUEXI_INPUT, "Tongue X");
+		configInput(TONGUEYI_INPUT, "Tongue Y");
 		configInput(THROATXI_INPUT, "Throat X");
 		configInput(THROATYI_INPUT, "Throat Y");
 		configInput(FRICFCI_INPUT, "Fricative Fc");
-		configInput(FRICQI_INPUT, "Frciative Q");
-		configInput(FRICL_INPUT, "Frciative Level");
+		configInput(FRICQI_INPUT, "Fricative Q");
+		configInput(FRICL_INPUT, "Fricative Level");
 		configInput(TENSEI_INPUT, "Tenseness");
 		configInput(VOCT_INPUT, "VOct");
 		configInput(FMI_INPUT, "FM");
