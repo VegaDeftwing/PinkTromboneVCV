@@ -182,6 +182,9 @@ Tract::~Tract()
 
 	if (this->noseMaxAmplitude)
 		free(this->noseMaxAmplitude);
+
+	if (this->transients)
+		free(this->transients);
 }
 
 long Tract::getTractIndexCount()
