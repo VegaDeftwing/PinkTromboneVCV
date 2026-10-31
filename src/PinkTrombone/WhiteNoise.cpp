@@ -10,13 +10,17 @@
 #include <math.h>
 
 
-WhiteNoise::WhiteNoise(long sampleLength) {
+WhiteNoise::WhiteNoise(long sampleLength, uint32_t seed) {
 	this->index = 0;
-	this->size = sampleLength;
-	this->buffer = (sample_t *) malloc(sampleLength * sizeof(sample_t));
+	this->size = sampleLength > 0 ? sampleLength : 1;
+	this->buffer = (sample_t *) malloc(this->size * sizeof(sample_t));
 	
 	for (long i = 0; i < this->size; i++) {
-		this->buffer[i] = ((sample_t) rand() / (sample_t) RAND_MAX) * 2.0 - 1.0;
+		seed = seed ? seed : 0x6d2b79f5u;
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        this->buffer[i] = (seed >> 8) * (2.f / 16777216.f) - 1.f;
 	}
 }
 

@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include "config.h"
 
+void initializeSimplexNoise();
+
 sample_t simplex1(sample_t xin);
 sample_t simplex2(sample_t xin, sample_t yin);
 

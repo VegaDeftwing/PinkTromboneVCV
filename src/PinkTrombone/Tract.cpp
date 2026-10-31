@@ -21,6 +21,12 @@ typedef struct t_transient
 	bool living;
 } t_transient;
 
+static sample_t restingDiameter(int index, int n) {
+    if (index < TRACT_BOUND_A * (sample_t)n - 0.5) return TRACT_DIAMETER_A;
+    if (index < TRACT_BOUND_B * (sample_t)n) return TRACT_DIAMETER_B;
+    return TRACT_DIAMETER_C;
+}
+
 void initializeTractProps(t_tractProps *props, int n)
 {
 	props->n = n;
@@ -76,13 +82,7 @@ void Tract::init()
 	this->newDiameter = (sample_t *)calloc(this->tractProps->n, sizeof(sample_t));
 	for (int i = 0; i < this->tractProps->n; i++)
 	{
-		sample_t diameter = 0;
-		if (i < TRACT_BOUND_A * (sample_t)this->tractProps->n - 0.5)
-			diameter = TRACT_DIAMETER_A;
-		else if (i < TRACT_BOUND_B * (sample_t)this->tractProps->n)
-			diameter = TRACT_DIAMETER_B;
-		else
-			diameter = TRACT_DIAMETER_C;
+        sample_t diameter = restingDiameter(i, tractProps->n);
 		this->diameter[i] = this->restDiameter[i] = this->targetDiameter[i] = this->newDiameter[i] = diameter;
 	}
 	this->R = (sample_t *)calloc(this->tractProps->n, sizeof(sample_t));
@@ -114,9 +114,9 @@ void Tract::init()
 		this->noseDiameter[i] = diameter;
 	}
 	this->newReflectionLeft = this->newReflectionRight = this->newReflectionNose = 0.0;
-	this->calculateReflections();
-	this->calculateNoseReflections();
-	this->noseDiameter[0] = this->velumTarget;
+    this->noseDiameter[0] = this->velumTarget;
+    this->calculateNoseReflections();
+    this->calculateReflections();
 	memcpy(this->tractProps->tractDiameter, this->diameter, sizeof(sample_t) * this->tractProps->n);
 	memcpy(this->tractProps->noseDiameter, this->noseDiameter, sizeof(sample_t) * this->tractProps->noseLength);
 }
@@ -206,29 +206,19 @@ void Tract::addTransient(int position)
 {
 	if (this->transientCount < MAX_TRANSIENTS)
 	{
-		t_transient *trans = nullptr;
-		for (int i = 0; i < MAX_TRANSIENTS; i++)
-		{
-			trans = this->transients + i;
-			if (trans->living == false)
-				break;
-		}
-		if (trans)
-		{
-			trans->position = position;
-			trans->timeAlive = 0;
-			trans->lifeTime = 0.2;
-			trans->strength = 0.3;
-			trans->exponent = 200;
-			trans->living = true;
-		}
-		this->transientCount++;
+        t_transient* trans = &transients[transientCount++];
+        trans->position = position;
+        trans->timeAlive = 0;
+        trans->lifeTime = 0.2;
+        trans->strength = 0.3;
+        trans->exponent = 200;
+        trans->living = true;
 	}
 }
 
 void Tract::addTurbulenceNoise(sample_t turbulenceNoise, sample_t glottalNoiseModulator)
 {
-	if (this->constrictionIndex < 2.0 || this->constrictionIndex > (sample_t)this->tractProps->n)
+	if (this->constrictionIndex < 2.0 || this->constrictionIndex >= (sample_t)(this->tractProps->n - 2))
 	{
 		return;
 	}
@@ -240,6 +230,7 @@ void Tract::addTurbulenceNoise(sample_t turbulenceNoise, sample_t glottalNoiseMo
 
 void Tract::addTurbulenceNoiseAtIndex(sample_t turbulenceNoise, sample_t index, sample_t diameter, sample_t glottalNoiseModulator)
 {
+    if (!std::isfinite(index) || index < 0 || index >= tractProps->n - 2) return;
 	long i = (long)floor(index);
 	sample_t delta = index - (sample_t)i;
 	turbulenceNoise *= glottalNoiseModulator;
@@ -255,18 +246,27 @@ void Tract::addTurbulenceNoiseAtIndex(sample_t turbulenceNoise, sample_t index, 
 
 void Tract::calculateReflections()
 {
-	for (int i = 0; i < this->tractProps->n; i++)
-	{
-		this->A[i] = this->diameter[i] * this->diameter[i]; //ignoring PI etc.
-	}
-	for (int i = 1; i < this->tractProps->n; i++)
-	{
-		this->reflection[i] = this->newReflection[i];
-		if (this->A[i] == 0)
-			this->newReflection[i] = 0.999; //to prevent some bad behaviour if 0
-		else
-			this->newReflection[i] = (this->A[i - 1] - this->A[i]) / (this->A[i - 1] + this->A[i]);
-	}
+    int areaIndex = 0;
+    if (useSimd) for (; areaIndex + 3 < tractProps->n; areaIndex += 4) {
+        auto d = rack::simd::float_4::load(diameter + areaIndex);
+        (d * d).store(A + areaIndex);
+    }
+    for (int i = areaIndex; i < tractProps->n; ++i) A[i] = diameter[i] * diameter[i];
+    int reflectionIndex = 1;
+    if (useSimd) for (; reflectionIndex + 3 < tractProps->n; reflectionIndex += 4) {
+        using rack::simd::float_4;
+        auto previous = float_4::load(A + reflectionIndex - 1);
+        auto current = float_4::load(A + reflectionIndex);
+        auto closed = current == 0.f;
+        auto denominator = rack::simd::ifelse(closed, float_4(1.f), previous + current);
+        auto next = rack::simd::ifelse(closed, float_4(.999f), (previous - current) / denominator);
+        float_4::load(newReflection + reflectionIndex).store(reflection + reflectionIndex);
+        next.store(newReflection + reflectionIndex);
+    }
+    for (int i = reflectionIndex; i < tractProps->n; ++i) {
+        reflection[i] = newReflection[i];
+        newReflection[i] = A[i] == 0.f ? .999f : (A[i - 1] - A[i]) / (A[i - 1] + A[i]);
+    }
 
 	//now at junction with nose
 	this->reflectionLeft = this->newReflectionLeft;
@@ -292,19 +292,31 @@ void Tract::calculateNoseReflections()
 
 void Tract::finishBlock()
 {
-	this->reshapeTract(this->blockTime);
-	this->calculateReflections();
-	memcpy(this->tractProps->tractDiameter, this->diameter, sizeof(sample_t) * this->tractProps->n);
-	memcpy(this->tractProps->noseDiameter, this->noseDiameter, sizeof(sample_t) * this->tractProps->noseLength);
+    if (!shapeMoving && !reflectionDirty) return;
+    bool changed = reshapeTract(blockTime);
+    if (changed || reflectionDirty) {
+        calculateReflections();
+        memcpy(tractProps->tractDiameter, diameter, sizeof(sample_t) * tractProps->n);
+        memcpy(tractProps->noseDiameter, noseDiameter, sizeof(sample_t) * tractProps->noseLength);
+    }
+    // One final update aligns the previous and new reflections at rest.
+    reflectionDirty = changed;
 }
 
 void Tract::setRestDiameter(sample_t tongueIndex, sample_t tongueDiameter)
 {
+    shapeMoving = true;
 	this->tractProps->tongueIndex = tongueIndex;
 	this->tractProps->tongueDiameter = tongueDiameter;
+    // Restore sections which leave the tongue's range when the blade moves.
+    for (int i = 0; i < tractProps->bladeStart; ++i) {
+        restDiameter[i] = restingDiameter(i, tractProps->n);
+    }
 	for (long i = this->tractProps->bladeStart; i < this->tractProps->lipStart; i++)
 	{
-		sample_t t = 1.1 * M_PI * (sample_t)(tongueIndex - i) / (sample_t)(this->tractProps->tipStart - this->tractProps->bladeStart);
+        int span = this->tractProps->tipStart - this->tractProps->bladeStart;
+        if (span == 0) span = 1;
+		sample_t t = 1.1 * M_PI * (sample_t)(tongueIndex - i) / (sample_t)span;
 		sample_t fixedTongueDiameter = 2 + (tongueDiameter - 2) / 1.5;
 		sample_t curve = (1.5 - fixedTongueDiameter + 1.7) * rack::simd::cos(t);
 		if (i == this->tractProps->bladeStart - 2 || i == this->tractProps->lipStart - 1)
@@ -321,6 +333,7 @@ void Tract::setRestDiameter(sample_t tongueIndex, sample_t tongueDiameter)
 
 void Tract::setConstriction(sample_t cindex, sample_t cdiam, sample_t fricativeIntensity)
 {
+    shapeMoving = true;
 	this->constrictionIndex = cindex;
 	this->constrictionDiameter = cdiam;
 	this->fricativeIntensity = fricativeIntensity;
@@ -354,7 +367,7 @@ void Tract::setConstriction(sample_t cindex, sample_t cdiam, sample_t fricativeI
 			if (intIndex + i < 0 || intIndex + i >= this->tractProps->n)
 				continue;
 			sample_t relpos = (intIndex + i) - this->constrictionIndex;
-			relpos = abs(relpos) - 0.5;
+			relpos = std::fabs(relpos) - 0.5;
 			sample_t shrink;
 			if (relpos <= 0)
 				shrink = 0;
@@ -372,29 +385,28 @@ void Tract::setConstriction(sample_t cindex, sample_t cdiam, sample_t fricativeI
 
 void Tract::processTransients()
 {
-	for (int i = 0; i < this->transientCount; i++)
-	{
-		t_transient *trans = this->transients + i;
-		sample_t amplitude = trans->strength * rack::simd::pow(2.0, -trans->exponent * trans->timeAlive);
-		this->R[trans->position] += amplitude / 2.0;
-		this->L[trans->position] += amplitude / 2.0;
-		trans->timeAlive += 1.0 / (this->sampleRate * 2.0);
-	}
-	for (int i = this->transientCount - 1; i >= 0; i--)
-	{
-		t_transient *trans = this->transients + i;
-		if (trans->timeAlive > trans->lifeTime)
-		{
-			trans->living = false;
-		}
-	}
+    for (int i = 0; i < transientCount;) {
+        t_transient* trans = &transients[i];
+        if (trans->timeAlive > trans->lifeTime) {
+            transients[i] = transients[--transientCount];
+            continue;
+        }
+        sample_t amplitude = trans->strength * rack::simd::pow(2.0, -trans->exponent * trans->timeAlive);
+        R[trans->position] += amplitude / 2.0;
+        L[trans->position] += amplitude / 2.0;
+        trans->timeAlive += 1.0 / (sampleRate * 2.0);
+        ++i;
+    }
 }
 
-void Tract::reshapeTract(sample_t deltaTime)
+bool Tract::reshapeTract(sample_t deltaTime)
 {
+    bool changed = false;
+    bool moving = false;
 	sample_t amount = deltaTime * this->movementSpeed;
 	;
 	int newLastObstruction = -1;
+
 	for (int i = 0; i < this->tractProps->n; i++)
 	{
 		sample_t diameter = this->diameter[i];
@@ -409,6 +421,8 @@ void Tract::reshapeTract(sample_t deltaTime)
 		else
 			slowReturn = 0.6 + 0.4 * (i - this->tractProps->noseStart) / (this->tractProps->tipStart - this->tractProps->noseStart);
 		this->diameter[i] = moveTowards(diameter, targetDiameter, slowReturn * amount, 2 * amount);
+        changed |= this->diameter[i] != diameter;
+        moving |= this->diameter[i] != targetDiameter;
 	}
 	if (this->lastObstruction > -1 && newLastObstruction == -1 && this->noseA[0] < 0.05)
 	{
@@ -417,14 +431,20 @@ void Tract::reshapeTract(sample_t deltaTime)
 	this->lastObstruction = newLastObstruction;
 
 	amount = deltaTime * this->movementSpeed;
+    sample_t oldNose = noseDiameter[0];
 	this->noseDiameter[0] = moveTowards(this->noseDiameter[0], this->velumTarget, amount * 0.25, amount * 0.1);
+    changed |= noseDiameter[0] != oldNose;
+    shapeMoving = moving || noseDiameter[0] != velumTarget;
 	this->tractProps->noseDiameter[0] = this->noseDiameter[0];
 	this->noseA[0] = this->noseDiameter[0] * this->noseDiameter[0];
+    if (noseDiameter[0] != oldNose && tractProps->noseLength > 1)
+        noseReflection[1] = (noseA[0] - noseA[1]) / (noseA[0] + noseA[1]);
+    return changed;
 }
 
 void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t lambda, sample_t glottalNoiseModulator)
 {
-	sample_t updateAmplitudes = ((sample_t)rand() / (sample_t)RAND_MAX) < 0.1;
+    // Peak histories were private, never read, and consumed global rand().
 
 	//mouth
 	this->processTransients();
@@ -433,6 +453,7 @@ void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t l
 	//this->glottalReflection = -0.8 + 1.6 * Glottis.newTenseness;
 	this->junctionOutputR[0] = this->L[0] * this->glottalReflection + glottalOutput;
 	this->junctionOutputL[this->tractProps->n] = this->R[this->tractProps->n - 1] * this->lipReflection;
+
 
 	for (int i = 1; i < this->tractProps->n; i++)
 	{
@@ -451,7 +472,13 @@ void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t l
 	r = this->newReflectionNose * (1 - lambda) + this->reflectionNose * lambda;
 	this->noseJunctionOutputR[0] = r * this->noseL[0] + (1 + r) * (this->L[i] + this->R[i - 1]);
 
-	for (int i = 0; i < this->tractProps->n; i++)
+    int mouthUpdate = 0;
+    if (useSimd) for (; mouthUpdate + 3 < tractProps->n; mouthUpdate += 4) {
+        using rack::simd::float_4;
+        (float_4::load(junctionOutputR + mouthUpdate) * .999f).store(R + mouthUpdate);
+        (float_4::load(junctionOutputL + mouthUpdate + 1) * .999f).store(L + mouthUpdate);
+    }
+	for (int i = mouthUpdate; i < this->tractProps->n; i++)
 	{
 		this->R[i] = this->junctionOutputR[i] * 0.999;
 		this->L[i] = this->junctionOutputL[i + 1] * 0.999;
@@ -459,14 +486,6 @@ void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t l
 		//this->R[i] = Math.clamp(this->junctionOutputR[i] * this->fade, -1, 1);
 		//this->L[i] = Math.clamp(this->junctionOutputL[i+1] * this->fade, -1, 1);
 
-		if (updateAmplitudes)
-		{
-			sample_t amplitude = rack::simd::abs(this->R[i] + this->L[i]);
-			if (amplitude > this->maxAmplitude[i])
-				this->maxAmplitude[i] = amplitude;
-			else
-				this->maxAmplitude[i] *= 0.999;
-		}
 	}
 
 	this->lipOutput = this->R[this->tractProps->n - 1];
@@ -474,12 +493,14 @@ void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t l
 	//nose
 	this->noseJunctionOutputL[this->tractProps->noseLength] = this->noseR[this->tractProps->noseLength - 1] * this->lipReflection;
 
+
 	for (int i = 1; i < this->tractProps->noseLength; i++)
 	{
-		int w = this->noseReflection[i] * (this->noseR[i - 1] + this->noseL[i]);
+		sample_t w = this->noseReflection[i] * (this->noseR[i - 1] + this->noseL[i]);
 		this->noseJunctionOutputR[i] = this->noseR[i - 1] - w;
 		this->noseJunctionOutputL[i] = this->noseL[i] + w;
 	}
+
 
 	for (int i = 0; i < this->tractProps->noseLength; i++)
 	{
@@ -489,15 +510,16 @@ void Tract::runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t l
 		//this->noseR[i] = Math.clamp(this->noseJunctionOutputR[i] * this->fade, -1, 1);
 		//this->noseL[i] = Math.clamp(this->noseJunctionOutputL[i+1] * this->fade, -1, 1);
 
-		if (updateAmplitudes)
-		{
-			sample_t amplitude = rack::simd::abs(this->noseR[i] + this->noseL[i]);
-			if (amplitude > this->noseMaxAmplitude[i])
-				this->noseMaxAmplitude[i] = amplitude;
-			else
-				this->noseMaxAmplitude[i] *= 0.999;
-		}
 	}
 
 	this->noseOutput = this->noseR[this->tractProps->noseLength - 1];
+}
+
+void Tract::resetWaves() {
+    std::fill_n(R, tractProps->n, 0.f);
+    std::fill_n(L, tractProps->n, 0.f);
+    std::fill_n(noseR, tractProps->noseLength, 0.f);
+    std::fill_n(noseL, tractProps->noseLength, 0.f);
+    transientCount = 0;
+    lipOutput = noseOutput = 0.f;
 }

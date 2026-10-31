@@ -21,3 +21,14 @@ DISTRIBUTABLES += $(wildcard presets)
 
 # Include the Rack plugin Makefile framework
 include $(RACK_DIR)/plugin.mk
+
+.PHONY: test benchmark
+test: build/tests/regression
+	LD_LIBRARY_PATH="$(RACK_DIR):$$LD_LIBRARY_PATH" $<
+
+benchmark: build/tests/regression
+	LD_LIBRARY_PATH="$(RACK_DIR):$$LD_LIBRARY_PATH" $< --benchmark
+
+build/tests/regression: tests/regression.cpp Makefile $(wildcard src/*.hpp src/*.cpp src/PinkTrombone/*)
+	mkdir -p build/tests
+	$(CXX) -Isrc $(CXXFLAGS) tests/regression.cpp $(PINK_SOURCES) -L$(RACK_DIR) -lRack -pthread -o $@

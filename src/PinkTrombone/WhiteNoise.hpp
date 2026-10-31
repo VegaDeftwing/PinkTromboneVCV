@@ -9,11 +9,12 @@
 #define WhiteNoise_hpp
 
 #include <stdio.h>
+#include <cstdint>
 #include "config.h"
 
 class WhiteNoise {
 public:
-	WhiteNoise(long sampleLength);
+	WhiteNoise(long sampleLength, uint32_t seed = 1);
     virtual ~WhiteNoise();
 	sample_t runStep();
 private:

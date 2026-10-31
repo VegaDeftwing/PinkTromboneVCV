@@ -7,6 +7,7 @@
 
 #include "noise.hpp"
 #include <ctime>
+#include <cstdint>
 #include <sys/time.h>
 #include <math.h>
 
@@ -44,11 +45,11 @@ static short p[] = {151,160,137,91,90,15,
 // To remove the need for index wrapping, sample_t the permutation table length
 static int perm[512];
 static Grad gradP[512];
-static bool didseed = false;
+
 
 // This isn't a very good seeding function, but it works ok. It supports 2^16
 // different seed values. Write something better if you need more seeds.
-static void seed(short seed) {
+static void seed(uint16_t seed) {
 	if(seed < 256) {
 		seed |= seed << 8;
 	}
@@ -66,7 +67,7 @@ static void seed(short seed) {
 	}
 };
 
-short timeseed() {
+static uint16_t timeseed() {
 	struct timeval tp;
 	gettimeofday(&tp, NULL);
 	long long mslong = (long long) tp.tv_sec * 1000L + tp.tv_usec / 1000; //get current timestamp in milliseconds
@@ -79,6 +80,12 @@ short timeseed() {
  gradP[i] = gradP[i + 256] = grad3[perm[i] % 12];
  }*/
 
+// Function-local static initialization is synchronized across Rack engine threads.
+void initializeSimplexNoise() {
+    static const bool initialized = (seed(timeseed()), true);
+    (void) initialized;
+}
+
 // Skewing and unskewing factors for 2, 3, and 4 dimensions
 static sample_t F2 = 0.5 * (sqrt(3.0) - 1.0);
 static sample_t G2 = (3 - sqrt(3.0)) / 6.0;
@@ -86,10 +93,7 @@ static sample_t G2 = (3 - sqrt(3.0)) / 6.0;
 // 2D simplex noise
 sample_t simplex2(sample_t xin, sample_t yin) {
 	
-	if (!didseed) {
-		seed(timeseed());
-		didseed = true;
-	}
+	initializeSimplexNoise();
 	
 	sample_t n0, n1, n2; // Noise contributions from the three corners
 	// Skew the input space to determine which simplex cell we're in

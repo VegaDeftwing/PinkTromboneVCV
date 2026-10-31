@@ -16,6 +16,8 @@ public:
     Biquad(sample_t sampleRate);
     virtual ~Biquad() {};
 	void setFrequency(sample_t f);
+    void setSampleRate(sample_t rate);
+    void reset();
 	void setQ(sample_t f);
 	void setGain(sample_t g);
 	sample_t runStep(sample_t xn);

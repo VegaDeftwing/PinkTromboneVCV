@@ -19,11 +19,13 @@ public:
 	//void finishBlock();
 	void finishBlock(float vibratodepth);
 	sample_t getNoiseModulator();
+    void setSampleRate(sample_t rate) { sampleRate = rate; }
 	void setTargetFrequency(sample_t frequency); // 140
 	void setTargetTenseness(sample_t tenseness); // 0.6
 	void setIntensity(sample_t intensity);
 	
 private:
+    friend struct GlottisTestAccess;
 	void setupWaveform(sample_t lambda);
 	sample_t normalizedLFWaveform(sample_t t);
 	
@@ -40,7 +42,8 @@ private:
 	sample_t Delta;
 	sample_t Te;
 	sample_t omega;
-	sample_t totalTime;
+	// Keep sub-sample clock resolution throughout the 512-second noise period.
+    double totalTime;
 	sample_t intensity;
 	sample_t loudness;
 	sample_t vibratoAmount;

@@ -9,6 +9,7 @@
 #define Tract_hpp
 
 #include <stdio.h>
+#include <cmath>
 //#include "../JuceLibraryCode/JuceHeader.h"
 #include "Glottis.hpp"
 #include "config.h"
@@ -39,6 +40,12 @@ public:
 	// void runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t lambda, Glottis *glottis);
 	void runStep(sample_t glottalOutput, sample_t turbulenceNoise, sample_t lambda, sample_t glottalNoiseModulator);
 	void finishBlock();
+    void setSampleRate(sample_t rate) { sampleRate = rate; blockTime = 1.f / rate; }
+    void resetWaves();
+    sample_t amplitude(int index) const { return std::fabs(R[index] + L[index]); }
+    sample_t noseAmplitude(int index) const { return std::fabs(noseR[index] + noseL[index]); }
+    bool useSimd = true;
+    void invalidateReflections() { reflectionDirty = true; }
 	void setRestDiameter(sample_t tongueIndex, sample_t tongueDiameter);
 	void setConstriction(sample_t cindex, sample_t cdiam, sample_t fricativeIntensity);
 	sample_t lipOutput;
@@ -49,6 +56,7 @@ public:
 	long tongueIndexUpperBound();
 	
 private:
+    friend struct TractTestAccess;
 	void init();
 	void addTransient(int position);
 	//void addTurbulenceNoise(sample_t turbulenceNoise, Glottis *glottis);
@@ -58,7 +66,9 @@ private:
 	void calculateReflections();
 	void calculateNoseReflections();
 	void processTransients();
-	void reshapeTract(sample_t deltaTime);
+	bool reshapeTract(sample_t deltaTime);
+    bool shapeMoving = true;
+    bool reflectionDirty = true;
 	
 	sample_t sampleRate, blockTime;
 	t_tractProps *tractProps;

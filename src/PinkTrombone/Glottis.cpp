@@ -113,7 +113,7 @@ void Glottis::finishBlock(float vibratodepth)
 	sample_t vibrato = 0;
 	//vibrato += this->vibratoAmount * sin(2 * M_PI * this->totalTime * this->vibratoFrequency);
 	//Vibrato has a base amount defined here. The depth of this should probably be an accessible prameter.
-	if (this->totalTime == 512)
+	if (this->totalTime >= 512)
 	{
 		this->totalTime = 0;
 	}
