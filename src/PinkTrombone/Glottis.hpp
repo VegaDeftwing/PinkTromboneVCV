@@ -23,6 +23,7 @@ public:
 	void setTargetFrequency(sample_t frequency); // 140
 	void setTargetTenseness(sample_t tenseness); // 0.6
 	void setIntensity(sample_t intensity);
+    void setLoudness(sample_t value) { loudness = value; }
 	
 private:
     friend struct GlottisTestAccess;

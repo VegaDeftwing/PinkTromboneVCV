@@ -1,4 +1,5 @@
 #include "../src/PinkTrombone.cpp"
+#include "../src/PinkSpeech.cpp"
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -9,6 +10,7 @@
 
 Plugin* pluginInstance = nullptr;
 static size_t comparisons = 0;
+void connectOutputs(Module& module) { for (auto& output : module.outputs) output.channels = 1; }
 void require(bool condition, const char* message) {
     if (!condition) throw std::runtime_error(message);
 }
@@ -370,6 +372,8 @@ void reviewRegressions() {
     std::cout << "Review regressions: long-running clocks, blade history, nasal coupling and independent external noise passed\n";
 }
 
+#include "speech.cpp"
+
 volatile float benchmarkSink = 0;
 double benchmark(bool useSimd) {
     PinkTrombone module(42);
@@ -386,7 +390,12 @@ double benchmark(bool useSimd) {
 int main(int argc, char** argv) {
     // The standalone harness owns the model factory normally owned by Rack.
     std::unique_ptr<Model> factoryOwner(modelPinkTrombone);
+    std::unique_ptr<Model> speechFactoryOwner(modelPinkSpeech);
     try {
+        if (argc >= 3 && std::string(argv[1]) == "--render-speech") {
+            renderSpeech(argv[2], argc >= 4 ? argv[3] : "Hello world. This is Pink Trombone.");
+            return 0;
+        }
         if (argc == 2 && std::string(argv[1]) == "--benchmark") {
             double scalar = 1e9, vector = 1e9;
             for (int trial = 0; trial < 3; ++trial) {
@@ -398,6 +407,7 @@ int main(int argc, char** argv) {
             return 0;
         }
         threadedNoise(); reviewRegressions(); bugRegressions(); routing(); waveguideSimd(); stress(); independence(); geometryAndControls(); switchesAndSpread(); externalAudio();
+        englishFrontend(); speechOffsets(); speechExpander(); speechPlaybackState(); speechWordsAndSmoothing();
         std::cout << comparisons << " exact sample comparisons passed\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

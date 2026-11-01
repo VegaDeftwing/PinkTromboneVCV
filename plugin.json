@@ -20,6 +20,16 @@
       "tags": [
         "Physical modeling"
       ]
+    },
+    {
+      "slug": "PinkSpeech",
+      "name": "Pink Speech",
+      "description": "Offline English text-to-speech controller for Pink Trombone",
+      "tags": [
+        "Expander",
+        "Controller",
+        "Speech"
+      ]
     }
   ]
 }

@@ -8,6 +8,7 @@
 struct PinkTromboneDisplay {
     std::array<std::atomic<float>, 44> mouth, mouthAmplitude;
     std::array<std::atomic<float>, 28> nose, noseAmplitude;
+    std::atomic<bool> speechActive{false};
     std::atomic<float> tongueX{0.f}, tongueY{0.f}, throatX{.06f}, throatY{.69125f};
     std::atomic<float> pitch{261.6256f}, tenseness{.44f};
     std::atomic<int> noseStart{17}, bladeStart{9}, tipStart{34}, channels{1};

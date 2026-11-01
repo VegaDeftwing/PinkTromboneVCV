@@ -34,12 +34,7 @@ SIMD kernels. Compiler auto-vectorization remains enabled in both cases.
 For address and undefined-behavior checks on Linux:
 
 ```sh
-mkdir -p build/tests
-g++ -std=c++11 -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer \
-  -Isrc -I"$RACK_DIR/include" -I"$RACK_DIR/dep/include" \
-  tests/regression.cpp src/PinkTrombone/*.cpp -L"$RACK_DIR" -lRack \
-  -pthread -o build/tests/regression-sanitized
-LD_LIBRARY_PATH="$RACK_DIR" build/tests/regression-sanitized
+make test-sanitized -j4 RACK_DIR=/path/to/Rack-SDK
 ```
 
 The standalone harness releases its Rack model factory, so leak checking can
@@ -48,3 +43,29 @@ remain enabled.
 `patches/polyphony.vcv` is a portable four-voice keyboard → Pink Trombone → VCA
 → stereo audio patch. Select your output device in Audio 2. Use the QWERTY or
 ZXCVB rows to play chords. The VCA gates the otherwise continuous synthesizer.
+
+
+Speech tests cover dictionary pronunciations, number expansion, unknown-word
+fallback, common Unicode text, text limits, finite articulatory targets, base
+offsets, additive CV, unchanged stored knobs, native expander audio and channel
+routing, idle silence, gate/end timing, independent phrase lifetimes, queued
+starts, stop cancellation, repeat, pitch CV, bypass, reset and patch persistence.
+Both the module and vendored English frontend are instrumented by the sanitizer
+target. These checks verify control and audio behavior, not subjective speech
+intelligibility.
+
+To render a sentence through the physical model for listening:
+
+```sh
+LD_LIBRARY_PATH="$RACK_DIR" build/tests/regression --render-speech /tmp/speech.wav "Hello world."
+```
+
+`patches/speech.vcv` places the expander immediately left of a neutral host,
+connected to stereo Audio 2. Choose the audio device, then click Speak. All text
+processing is offline; there are no runtime dictionary/model downloads.
+
+Word/smoothing regressions check repeated and expanded words, exact boundaries,
+next-word wrap, button/trigger equivalence, held gates, latched selection,
+polyphonic selection, queued compilation, phrase versus word END timing, zero
+smoothing compatibility, independent pitch/envelopes and sample-rate-independent
+smoothing time constants.

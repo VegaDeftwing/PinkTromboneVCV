@@ -7,6 +7,7 @@ Plugin* pluginInstance;
 void init(Plugin* p) {
 	pluginInstance = p;
 	p->addModel(modelPinkTrombone);
+    p->addModel(modelPinkSpeech);
 
 	// Add modules here
 	// p->addModel(modelMyModule);

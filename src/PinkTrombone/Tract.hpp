@@ -42,6 +42,7 @@ public:
 	void finishBlock();
     void setSampleRate(sample_t rate) { sampleRate = rate; blockTime = 1.f / rate; }
     void resetWaves();
+    void setMovementSpeed(sample_t speed) { movementSpeed = speed; }
     sample_t amplitude(int index) const { return std::fabs(R[index] + L[index]); }
     sample_t noseAmplitude(int index) const { return std::fabs(noseR[index] + noseL[index]); }
     bool useSimd = true;

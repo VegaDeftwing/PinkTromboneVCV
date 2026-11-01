@@ -1,0 +1,88 @@
+{
+  "version": "2.6.6",
+  "modules": [
+    {
+      "id": 1,
+      "plugin": "Core",
+      "model": "Notes",
+      "params": [],
+      "pos": [
+        0,
+        0
+      ],
+      "data": {
+        "text": "PINK SPEECH\n\nType ordinary English in the expander.\n\nSpeak / Ctrl+Enter: speak from the beginning.\nStop: cancel speech. Repeat: loop.\n\nSpeech controls the neighboring Pink Trombone. The host knobs act as offsets from their factory defaults. CV and spread still work.\n\nChoose your output device in Audio 2.\n\nSpeak and Stop triggers, Rate and Pitch CV, Gate and End are polyphonic."
+      }
+    },
+    {
+      "id": 2,
+      "plugin": "PinkTrombone",
+      "model": "PinkSpeech",
+      "params": [],
+      "pos": [
+        16,
+        0
+      ],
+      "data": {
+        "text": "Hello world. This is Pink Trombone."
+      },
+      "rightModuleId": 3
+    },
+    {
+      "id": 3,
+      "plugin": "PinkTrombone",
+      "model": "PinkTrombone",
+      "params": [],
+      "pos": [
+        32,
+        0
+      ],
+      "leftModuleId": 2,
+      "rightModuleId": 4
+    },
+    {
+      "id": 4,
+      "plugin": "Core",
+      "model": "AudioInterface2",
+      "params": [
+        {
+          "id": 0,
+          "value": 0.5
+        }
+      ],
+      "pos": [
+        75,
+        0
+      ],
+      "data": {
+        "audio": {
+          "driver": 2,
+          "sampleRate": 48000.0,
+          "blockSize": 1024,
+          "inputOffset": 0,
+          "outputOffset": 0
+        },
+        "dcFilter": true
+      },
+      "leftModuleId": 3
+    }
+  ],
+  "cables": [
+    {
+      "id": 1,
+      "outputModuleId": 3,
+      "outputId": 0,
+      "inputModuleId": 4,
+      "inputId": 0,
+      "color": "#c070c6"
+    },
+    {
+      "id": 2,
+      "outputModuleId": 3,
+      "outputId": 0,
+      "inputModuleId": 4,
+      "inputId": 1,
+      "color": "#c070c6"
+    }
+  ]
+}

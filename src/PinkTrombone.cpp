@@ -14,6 +14,8 @@ struct PinkTrombone : Module, PinkTromboneIds {
     int previousChannels = 0;
     std::atomic<bool> voiceboxTouched{false};
     uint32_t spreadSeed;
+    pinkSpeech::Message speechMessages[2];
+    bool speechWasConnected = false;
 
     void setSpreadSeed(uint32_t seed) {
         spreadSeed = seed;
@@ -98,6 +100,8 @@ struct PinkTrombone : Module, PinkTromboneIds {
         for (int c = 0; c < 16; ++c)
             voices[c].reset(new PinkTromboneVoice(sampleRate, seed + 0x9e3779b9u * c));
         setSpreadSeed(seed ^ 0xa511e9b3u);
+        leftExpander.producerMessage = &speechMessages[0];
+        leftExpander.consumerMessage = &speechMessages[1];
         processDivider.setDivision(24);
         lightDivider.setDivision(48);
         displayDivider.setDivision(800);
@@ -115,15 +119,25 @@ struct PinkTrombone : Module, PinkTromboneIds {
             onSampleRateChange({args.sampleRate, args.sampleTime});
         int channels = 1;
         for (auto& input : inputs) channels = std::max(channels, input.getChannels());
+        const pinkSpeech::Message* speech = nullptr;
+        if (leftExpander.module && leftExpander.module->model == modelPinkSpeech) {
+            auto* message = static_cast<const pinkSpeech::Message*>(leftExpander.consumerMessage);
+            if (message && message->magic == pinkSpeech::messageMagic && message->version == 1) speech = message;
+        }
+        if (speech) channels = std::max(channels, std::max(1, std::min(16, speech->channels)));
+        bool speechChanged = bool(speech) != speechWasConnected;
+        speechWasConnected = speech != nullptr;
+        display.speechActive.store(speech != nullptr, std::memory_order_relaxed);
         bool controlFrame = processDivider.process();
         bool touched = voiceboxTouched.load(std::memory_order_relaxed);
         for (int c = 0; c < channels; ++c) {
             auto& voice = *voices[c];
             voice.touchActive = touched;
-            if (channels != previousChannels) voice.updateControls(params, inputs, c, channels > 1);
+            const pinkSpeech::Pose* pose = speech ? &speech->voices[speech->channels == 1 ? 0 : c] : nullptr;
+            if (channels != previousChannels || speechChanged) voice.updateControls(params, inputs, c, channels > 1, pose);
             outputs[OUTPUT_OUTPUT].setVoltage(voice.process(inputs[EXCITATION_INPUT].isConnected(), inputs[EXCITATION_INPUT].getPolyVoltage(c),
-                inputs[NOISE_INPUT].isConnected(), inputs[NOISE_INPUT].getPolyVoltage(c)), c);
-            if (controlFrame) voice.updateControls(params, inputs, c, channels > 1);
+                inputs[NOISE_INPUT].isConnected(), inputs[NOISE_INPUT].getPolyVoltage(c), pose), c);
+            if (controlFrame) voice.updateControls(params, inputs, c, channels > 1, pose);
         }
         outputs[OUTPUT_OUTPUT].setChannels(channels);
         previousChannels = channels;

@@ -1,5 +1,6 @@
 #pragma once
 #include "PinkTromboneIds.hpp"
+#include "speech/SpeechProtocol.hpp"
 #include "PinkTrombone/Glottis.hpp"
 #include "PinkTrombone/Tract.hpp"
 #include "PinkTrombone/WhiteNoise.hpp"
@@ -56,12 +57,20 @@ struct PinkTromboneVoice : PinkTromboneIds {
     }
 
     void updateControls(std::vector<rack::engine::Param>& params,
-                        std::vector<rack::engine::Input>& inputs, int channel, bool polyphonic = false) {
+                        std::vector<rack::engine::Input>& inputs, int channel, bool polyphonic = false, const pinkSpeech::Pose* speech = nullptr) {
         auto voltage = [&](int id) {
             float value = inputs[id].getPolyVoltage(channel);
             return std::isfinite(value) ? value : 0.f;
         };
-        auto value = [&](int id) { return params[id].getValue(); };
+        auto value = [&](int id) {
+            float knob = params[id].getValue();
+            if (speech) {
+                int control = pinkSpeech::controlForParam(id);
+                if (control >= 0) return speech->controls[control] + knob - pinkSpeech::neutralKnobs[control];
+            }
+            return knob;
+        };
+        tract.setMovementSpeed(speech ? 100.f : 15.f);
         auto spread = [&](int row, float range) {
             return polyphonic ? spreadOffsets[row] * value(SPREAD_PARAM + row) * range : 0.f;
         };
@@ -103,18 +112,20 @@ struct PinkTromboneVoice : PinkTromboneIds {
     }
 
     float process(bool externalVoice = false, float voiceVoltage = 0.f,
-                  bool externalNoise = false, float noiseVoltage = 0.f) {
-        glottis.setIntensity(alwaysVoice || touchActive ? fricativeLevel : 0.f);
+                  bool externalNoise = false, float noiseVoltage = 0.f, const pinkSpeech::Pose* speech = nullptr) {
+        glottis.setIntensity(speech || alwaysVoice || touchActive ? fricativeLevel : 0.f);
+        glottis.setLoudness(speech ? speech->voicing : 1.f);
         // Rack audio is nominally +/-5 V; the physical model uses +/-1.
         if (!std::isfinite(voiceVoltage)) voiceVoltage = 0.f;
         if (!std::isfinite(noiseVoltage)) noiseVoltage = 0.f;
         float noise = externalNoise ? noiseVoltage * .2f : externalVoice ? 0.f : whiteNoise.runStep();
+        if (speech) noise *= speech->noise;
         float aspiration = aspirateFilter.runStep(noise);
         float frication = fricativeFilter.runStep(noise);
         float glottal = externalVoice ? voiceVoltage * .2f : glottis.runStep(0.f, aspiration);
         // An external noise path must not be gated by the external audio's
         // instantaneous amplitude (including silence and zero crossings).
-        float noiseModulator = externalVoice ? 1.f : glottal;
+        float noiseModulator = externalVoice || speech ? 1.f : glottal;
         tract.runStep(glottal, frication, 0.f, noiseModulator);
         double output = tract.lipOutput + tract.noseOutput;
         tract.runStep(glottal, frication, 0.f, noiseModulator);
@@ -127,7 +138,7 @@ struct PinkTromboneVoice : PinkTromboneIds {
             fricativeFilter.reset();
             return 0.f;
         }
-        return rack::clamp(float(output), -10.f, 10.f);
+        return rack::clamp(float(output) * (speech ? speech->gain : 1.f), -10.f, 10.f);
     }
 
     void updateLights(std::vector<rack::engine::Light>& lights) {
